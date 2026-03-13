@@ -56,6 +56,8 @@ export interface SimpleTaskCardProps {
   description?: string
   tags?: string[]
   assignee?: { name: string; avatar?: string }
+  credits?: number
+  client?: { name: string; image?: string }
   className?: string
 }
 
@@ -67,6 +69,8 @@ export function SimpleTaskCard({
   description,
   tags = [],
   assignee,
+  credits,
+  client,
   className,
 }: SimpleTaskCardProps) {
   return (
@@ -104,21 +108,47 @@ export function SimpleTaskCard({
         </div>
       )}
 
+      {/* Client */}
+      {client && (
+        <div className="flex items-center justify-between px-3 py-2 bg-[#1e1e1e] rounded-xl">
+          <span className="text-[10px] font-semibold text-[#525252] uppercase tracking-wide">Cliente</span>
+          <div className="flex items-center gap-1.5">
+            {client.image ? (
+              <img src={client.image} alt={client.name} className="size-5 rounded-full object-cover" />
+            ) : (
+              <div className="size-5 rounded-full bg-[#987dfe] flex items-center justify-center text-white text-[8px] font-semibold">
+                {client.name.charAt(0)}
+              </div>
+            )}
+            <span className="text-[12px] font-semibold text-[#a3a3a3]">{client.name}</span>
+          </div>
+        </div>
+      )}
+
       {/* Footer */}
-      {assignee && (
-        <div className="flex items-center gap-2 pt-1 border-t border-[#2a2a2a]">
-          {assignee.avatar ? (
-            <img
-              src={assignee.avatar}
-              alt={assignee.name}
-              className="size-6 rounded-full object-cover"
-            />
-          ) : (
-            <div className="size-6 rounded-full bg-[#2a2a2a] flex items-center justify-center text-[10px] text-[#a3a3a3] font-medium">
-              {assignee.name.charAt(0)}
+      {(assignee || credits !== undefined) && (
+        <div className="flex items-center justify-between pt-1 border-t border-[#2a2a2a]">
+          {assignee && (
+            <div className="flex items-center gap-2">
+              {assignee.avatar ? (
+                <img
+                  src={assignee.avatar}
+                  alt={assignee.name}
+                  className="size-6 rounded-full object-cover"
+                />
+              ) : (
+                <div className="size-6 rounded-full bg-[#2a2a2a] flex items-center justify-center text-[10px] text-[#a3a3a3] font-medium">
+                  {assignee.name.charAt(0)}
+                </div>
+              )}
+              <span className="text-[12px] text-[#a3a3a3]">{assignee.name}</span>
             </div>
           )}
-          <span className="text-[12px] text-[#a3a3a3]">{assignee.name}</span>
+          {credits !== undefined && (
+            <span className="flex items-center gap-1 bg-[#fef3c7] text-[#92400e] px-2.5 py-1 rounded-xl text-[11px] font-semibold ml-auto">
+              ◈ {credits} cr
+            </span>
+          )}
         </div>
       )}
     </div>
@@ -141,6 +171,8 @@ export interface DetailedTaskCardProps {
   assignees?: { name: string; avatar?: string }[]
   likes?: number
   comments?: number
+  credits?: number
+  client?: { name: string; image?: string }
   className?: string
 }
 
@@ -158,6 +190,8 @@ export function DetailedTaskCard({
   assignees = [],
   likes,
   comments,
+  credits,
+  client,
   className,
 }: DetailedTaskCardProps) {
   return (
@@ -244,6 +278,23 @@ export function DetailedTaskCard({
         </div>
       )}
 
+      {/* Client */}
+      {client && (
+        <div className="flex items-center justify-between px-3 py-2 bg-[#1e1e1e] rounded-xl">
+          <span className="text-[10px] font-semibold text-[#525252] uppercase tracking-wide">Cliente</span>
+          <div className="flex items-center gap-1.5">
+            {client.image ? (
+              <img src={client.image} alt={client.name} className="size-5 rounded-full object-cover" />
+            ) : (
+              <div className="size-5 rounded-full bg-[#987dfe] flex items-center justify-center text-white text-[8px] font-semibold">
+                {client.name.charAt(0)}
+              </div>
+            )}
+            <span className="text-[12px] font-semibold text-[#a3a3a3]">{client.name}</span>
+          </div>
+        </div>
+      )}
+
       {/* Footer */}
       <div className="flex items-center justify-between pt-1 border-t border-[#2a2a2a]">
         {/* Avatar stack */}
@@ -272,13 +323,16 @@ export function DetailedTaskCard({
           )}
         </div>
 
-        {/* Counters */}
-        {(likes !== undefined || comments !== undefined) && (
-          <div className="flex items-center gap-3 text-[12px] text-[#737373]">
-            {likes !== undefined && <span>♡ {likes}</span>}
-            {comments !== undefined && <span>◻ {comments}</span>}
-          </div>
-        )}
+        {/* Counters + Credits */}
+        <div className="flex items-center gap-3 text-[12px] text-[#737373]">
+          {likes !== undefined && <span>♡ {likes}</span>}
+          {comments !== undefined && <span>◻ {comments}</span>}
+          {credits !== undefined && (
+            <span className="flex items-center gap-1 bg-[#fef3c7] text-[#92400e] px-2 py-0.5 rounded-lg font-semibold">
+              ◈ {credits} cr
+            </span>
+          )}
+        </div>
       </div>
     </div>
   )
