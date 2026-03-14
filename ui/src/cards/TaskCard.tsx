@@ -146,7 +146,7 @@ export function SimpleTaskCard({
           )}
           {credits !== undefined && (
             <span className="flex items-center gap-1 bg-[#fef3c7] text-[#92400e] px-2.5 py-1 rounded-xl text-[11px] font-semibold ml-auto">
-              ◈ {credits} cr
+              ◈ {credits}
             </span>
           )}
         </div>
@@ -329,7 +329,7 @@ export function DetailedTaskCard({
           {comments !== undefined && <span>◻ {comments}</span>}
           {credits !== undefined && (
             <span className="flex items-center gap-1 bg-[#fef3c7] text-[#92400e] px-2 py-0.5 rounded-lg font-semibold">
-              ◈ {credits} cr
+              ◈ {credits}
             </span>
           )}
         </div>
