@@ -1,0 +1,17 @@
+
+> @figma/my-make-file@0.0.1 dev
+> vite --host 127.0.0.1 --port 4173
+
+[31mfailed to load config from F:\BACKUP 2026\DOCUMENTOS\CONTRATOS\FELIPE STEPHAN\PROJETOS\WePlanner 1\Weplanner\ai-contex_pattern\vite.config.ts[39m
+[31merror when starting dev server:
+Error: spawn EPERM
+    at ChildProcess.spawn (node:internal/child_process:421:11)
+    at Object.spawn (node:child_process:796:9)
+    at ensureServiceIsRunning (F:\BACKUP 2026\DOCUMENTOS\CONTRATOS\FELIPE STEPHAN\PROJETOS\WePlanner 1\Weplanner\ai-contex_pattern\node_modules\esbuild\lib\main.js:1978:29)
+    at build (F:\BACKUP 2026\DOCUMENTOS\CONTRATOS\FELIPE STEPHAN\PROJETOS\WePlanner 1\Weplanner\ai-contex_pattern\node_modules\esbuild\lib\main.js:1876:26)
+    at bundleConfigFile (file:///F:/BACKUP%202026/DOCUMENTOS/CONTRATOS/FELIPE%20STEPHAN/PROJETOS/WePlanner%201/Weplanner/ai-contex_pattern/node_modules/vite/dist/node/chunks/dep-DBxKXgDP.js:49274:24)
+    at async bundleAndLoadConfigFile (file:///F:/BACKUP%202026/DOCUMENTOS/CONTRATOS/FELIPE%20STEPHAN/PROJETOS/WePlanner%201/Weplanner/ai-contex_pattern/node_modules/vite/dist/node/chunks/dep-DBxKXgDP.js:49258:19)
+    at async loadConfigFromFile (file:///F:/BACKUP%202026/DOCUMENTOS/CONTRATOS/FELIPE%20STEPHAN/PROJETOS/WePlanner%201/Weplanner/ai-contex_pattern/node_modules/vite/dist/node/chunks/dep-DBxKXgDP.js:49222:44)
+    at async resolveConfig (file:///F:/BACKUP%202026/DOCUMENTOS/CONTRATOS/FELIPE%20STEPHAN/PROJETOS/WePlanner%201/Weplanner/ai-contex_pattern/node_modules/vite/dist/node/chunks/dep-DBxKXgDP.js:48718:24)
+    at async _createServer (file:///F:/BACKUP%202026/DOCUMENTOS/CONTRATOS/FELIPE%20STEPHAN/PROJETOS/WePlanner%201/Weplanner/ai-contex_pattern/node_modules/vite/dist/node/chunks/dep-DBxKXgDP.js:38329:18)
+    at async CAC.<anonymous> (file:///F:/BACKUP%202026/DOCUMENTOS/CONTRATOS/FELIPE%20STEPHAN/PROJETOS/WePlanner%201/Weplanner/ai-contex_pattern/node_modules/vite/dist/node/cli.js:753:20)[39m
