@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   X,
   Calendar,
@@ -54,7 +54,7 @@ interface TaskDetailModalProps {
     description?: string;
     priority: 'low' | 'medium' | 'high' | 'urgent';
     status: 'todo' | 'in-progress' | 'review' | 'completed' | 'blocked' | 'archived' | 'new';
-    subtasks: { completed: number; total: number };
+    subtasks?: { completed: number; total: number };
     subtasksList?: Array<{ label: string; done: boolean }>;
     progress: number;
     dueDate: string;
@@ -81,9 +81,24 @@ export function TaskDetailModal({ isOpen, onClose, task }: TaskDetailModalProps)
   const [taskCompleted, setTaskCompleted] = useState(task.status === 'completed');
   const [completingAnim, setCompletingAnim] = useState(false);
 
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const progressColor = task.progress === 100 ? 'success' : task.progress >= 50 ? 'blue' : 'primary';
+  const hasSubtasks = Boolean(
+    (task.subtasks && task.subtasks.total > 0) ||
+      (task.subtasksList && task.subtasksList.length > 0),
+  );
 
   const dateAlertConfig = {
     approaching: {
@@ -149,9 +164,9 @@ export function TaskDetailModal({ isOpen, onClose, task }: TaskDetailModalProps)
               <div className="relative">
                 <button
                   onClick={() => setIsEditingCredits(v => !v)}
-                  className="flex flex-col items-start bg-[#fef3c7] text-[#92400e] px-2.5 py-1.5 rounded-lg hover:bg-[#fde68a] transition-colors"
+                  className="flex items-center gap-1.5 bg-[#fef3c7] text-[#92400e] px-2.5 py-1.5 rounded-lg hover:bg-[#fde68a] transition-colors"
                 >
-                  <span className="text-[9px] font-semibold text-[#b45309] uppercase tracking-wider leading-none mb-0.5">Créditos usados</span>
+                  <span className="text-[11px] font-semibold text-[#b45309] uppercase tracking-wide leading-none">Creditos usados</span>
                   <span className="text-sm font-bold leading-none">◈ {editCredits}</span>
                 </button>
                 {isEditingCredits && (
@@ -307,15 +322,17 @@ export function TaskDetailModal({ isOpen, onClose, task }: TaskDetailModalProps)
 
                 {/* Subtasks + Progress — below description */}
                 <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2 text-[#987dfe]">
-                      <CheckSquare className="h-4 w-4" />
-                      <span className="text-sm font-semibold">Subtarefas</span>
+                  {hasSubtasks && (
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2 text-[#987dfe]">
+                        <CheckSquare className="h-4 w-4" />
+                        <span className="text-sm font-semibold">Subtarefas</span>
+                      </div>
+                      <span className="text-sm font-bold text-[#525252] dark:text-[#f5f5f5]">
+                        {task.subtasks?.completed ?? 0}/{task.subtasks?.total ?? task.subtasksList?.length ?? 0}
+                      </span>
                     </div>
-                    <span className="text-sm font-bold text-[#525252] dark:text-[#f5f5f5]">
-                      {task.subtasks.completed}/{task.subtasks.total}
-                    </span>
-                  </div>
+                  )}
                   <ProgressBar value={task.progress} color={progressColor} size="md" showLabel />
                   {task.subtasksList && task.subtasksList.length > 0 && (
                     <div className="mt-3 space-y-2">

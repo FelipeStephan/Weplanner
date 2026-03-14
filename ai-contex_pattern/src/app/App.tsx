@@ -84,6 +84,7 @@ import { PromptBuilder } from "./components/shared/PromptBuilder";
 import { TaskDetailModal } from "./components/tasks/TaskDetailModal";
 import { CreateTaskModal } from "./components/tasks/CreateTaskModal";
 import { UserProfileCard } from "./components/shared/UserProfileCard";
+import { KanbanWorkspacePage } from "./components/boards/KanbanWorkspacePage";
 import {
   NotificationCard,
   NotificationList,
@@ -123,11 +124,19 @@ type Section =
   | "badges"
   | "cards"
   | "kanban"
+  | "workspace"
   | "components"
   | "principles"
   | "icons"
   | "notifications";
 type Role = "client" | "manager" | "collaborator";
+type PageView = "design-system" | "kanban-workspace";
+
+const getPageFromHash = (): PageView =>
+  typeof window !== "undefined" &&
+  window.location.hash === "#/kanban-workspace"
+    ? "kanban-workspace"
+    : "design-system";
 
 const MOCK_NOTIFICATIONS: NotificationItem[] = [
   {
@@ -313,6 +322,8 @@ const ICON_GROUPS: {
 ];
 
 export default function App() {
+  const [pageView, setPageView] =
+    useState<PageView>(getPageFromHash);
   const [activeSection, setActiveSection] =
     useState<Section>("all");
   const [modalOpen, setModalOpen] = useState(false);
@@ -339,6 +350,27 @@ export default function App() {
       document.documentElement.classList.remove("dark");
     }
   }, [darkMode]);
+
+  useEffect(() => {
+    const syncPageFromHash = () => {
+      setPageView(getPageFromHash());
+    };
+
+    syncPageFromHash();
+    window.addEventListener("hashchange", syncPageFromHash);
+
+    return () => {
+      window.removeEventListener("hashchange", syncPageFromHash);
+    };
+  }, []);
+
+  const openKanbanWorkspacePage = () => {
+    window.location.hash = "/kanban-workspace";
+  };
+
+  const openDesignSystemPage = () => {
+    window.location.hash = "/";
+  };
 
   const handleAvatarClick = (
     avatar: { name: string; image?: string },
@@ -839,6 +871,7 @@ export default function App() {
     { key: "badges", label: "Badges & Tags" },
     { key: "cards", label: "Cards" },
     { key: "kanban", label: "Kanban" },
+    { key: "workspace", label: "Board Workspace" },
     { key: "icons", label: "Iconografia" },
     { key: "notifications", label: "Notificações" },
     { key: "components", label: "Componentes" },
@@ -851,6 +884,8 @@ export default function App() {
     <div
       className={`min-h-screen bg-[#f5f5f7] dark:bg-[#0a0a0a] transition-colors duration-300`}
     >
+      {pageView === "design-system" && (
+      <>
       {/* Topbar */}
       <header className="sticky top-0 z-50 h-14 bg-white/80 dark:bg-[#141414]/80 backdrop-blur-xl border-b border-[#e5e5e5]/60 dark:border-[#2a2a2a]/60 px-4 md:px-6">
         <div className="flex items-center justify-between h-full max-w-[1440px] mx-auto">
@@ -877,11 +912,21 @@ export default function App() {
                 "Calendar",
                 "Team",
                 "Reports",
+                "Kanban Workspace",
               ].map((item) => (
                 <button
                   key={item}
+                  onClick={
+                    item === "Kanban Workspace"
+                      ? openKanbanWorkspacePage
+                      : undefined
+                  }
                   className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                    item === "Tasks"
+                    item === "Kanban Workspace"
+                      ? pageView === "kanban-workspace"
+                        ? "bg-[#ff5623]/10 text-[#ff5623]"
+                        : "text-[#737373] hover:text-[#171717] dark:hover:text-white hover:bg-[#f5f5f5] dark:hover:bg-[#2a2a2a]"
+                      : item === "Tasks" && pageView === "design-system"
                       ? "bg-[#ff5623]/10 text-[#ff5623]"
                       : "text-[#737373] hover:text-[#171717] dark:hover:text-white hover:bg-[#f5f5f5] dark:hover:bg-[#2a2a2a]"
                   }`}
@@ -993,9 +1038,27 @@ export default function App() {
           </div>
         </div>
       )}
+      </>
+      )}
 
       {/* Main Content */}
-      <main className="max-w-[1440px] mx-auto px-4 md:px-6 py-6 md:py-8">
+      <main
+        className={`${
+          pageView === "kanban-workspace"
+            ? "w-full"
+            : "max-w-[1440px] mx-auto px-4 md:px-6 py-6 md:py-8"
+        }`}
+      >
+        {pageView === "kanban-workspace" && (
+          <KanbanWorkspacePage
+            onBackToDesignSystem={openDesignSystemPage}
+            darkMode={darkMode}
+            onToggleDarkMode={() => setDarkMode(!darkMode)}
+          />
+        )}
+
+        {pageView === "design-system" && (
+          <>
         {/* Page Header */}
         <div className="mb-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
@@ -1008,10 +1071,20 @@ export default function App() {
                 padrões visuais
               </p>
             </div>
-            <Button className="bg-[#ff5623] hover:bg-[#c2410c] text-white rounded-lg h-9 px-4 text-sm shadow-sm">
-              <Plus className="h-4 w-4 mr-1.5" />
-              Novo Componente
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="outline"
+                className="rounded-lg h-9 px-4 text-sm dark:border-[#3a3a3a]"
+                onClick={openKanbanWorkspacePage}
+              >
+                <LayoutDashboard className="h-4 w-4 mr-1.5" />
+                Ir para Kanban
+              </Button>
+              <Button className="bg-[#ff5623] hover:bg-[#c2410c] text-white rounded-lg h-9 px-4 text-sm shadow-sm">
+                <Plus className="h-4 w-4 mr-1.5" />
+                Novo Componente
+              </Button>
+            </div>
           </div>
 
           {/* Section Filter */}
@@ -1443,7 +1516,6 @@ export default function App() {
                   <PriorityBadge priority="medium" />
                   <PriorityBadge priority="high" />
                   <PriorityBadge priority="urgent" />
-                  <PriorityBadge priority="high" size="md" />
                 </div>
               </div>
 
@@ -1754,11 +1826,12 @@ export default function App() {
               />
             </div>
 
-            {/* Original Task Cards */}
+            {/* Compact Task Cards */}
             <p className="text-xs font-semibold text-[#525252] uppercase tracking-wider mb-3">
-              Cards Compactos
+              Cards Minimizado
             </p>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
+            <div className="rounded-[28px] border border-[#e5e5e5] dark:border-[#2a2a2a] bg-[#f8f8f6] dark:bg-[#111213] p-5 mb-8">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <TaskCard
                 title="Design da nova landing page para campanha Q2"
                 description="Criar uma landing page moderna e responsiva que destaque os novos recursos do produto"
@@ -1772,7 +1845,8 @@ export default function App() {
                 attachmentsCount={3}
                 priority="high"
                 credits={10}
-                client={{ name: "Nike Brasil" }}
+                hideDescription
+                showCompleteButton
                 onClick={() => openTaskModal("compact-landing")}
               />
               <TaskCard
@@ -1787,11 +1861,13 @@ export default function App() {
                 commentsCount={2}
                 priority="medium"
                 credits={6}
-                client={{ name: "Ambev" }}
+                hideDescription
+                showCompleteButton
                 onClick={() =>
                   openTaskModal("review-marketing")
                 }
               />
+              </div>
             </div>
           </section>
         )}
@@ -1940,6 +2016,34 @@ export default function App() {
                   }
                 />
               </KanbanColumn>
+            </div>
+          </section>
+        )}
+
+        {activeSection === "workspace" && (
+          <section className="mb-10">
+            <SectionHeader
+              title="Board Workspace"
+              subtitle="Acesse a pagina dedicada do Kanban com drag and drop e filtros persistentes"
+            />
+            <div className="rounded-[28px] border border-[#e5e5e5] dark:border-[#2a2a2a] bg-white dark:bg-[#141414] p-6 md:p-8">
+              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                <div>
+                  <h3 className="text-xl font-semibold text-[#171717] dark:text-white">
+                    Pagina exclusiva do board
+                  </h3>
+                  <p className="text-sm text-[#737373] dark:text-[#a3a3a3] mt-2 max-w-2xl">
+                    O board agora fica em uma pagina separada para facilitar navegacao, pesquisa e movimentacao de cards entre colunas.
+                  </p>
+                </div>
+                <Button
+                  onClick={openKanbanWorkspacePage}
+                  className="bg-[#ff5623] hover:bg-[#c2410c] text-white rounded-xl h-10 px-5 text-sm shadow-sm"
+                >
+                  <LayoutDashboard className="h-4 w-4 mr-1.5" />
+                  Abrir pagina Kanban
+                </Button>
+              </div>
             </div>
           </section>
         )}
@@ -2544,9 +2648,11 @@ export default function App() {
             </div>
           </section>
         )}
+          </>
+        )}
       </main>
 
-      {/* Footer */}
+      {pageView === "design-system" && (
       <footer className="border-t border-[#e5e5e5] dark:border-[#2a2a2a] bg-white/80 dark:bg-[#141414]/80 backdrop-blur-xl py-6">
         <div className="max-w-[1440px] mx-auto px-4 md:px-6">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
@@ -2608,6 +2714,7 @@ export default function App() {
           </div>
         </div>
       </footer>
+      )}
 
       {/* Task Detail Modal */}
       {selectedTask && MODAL_TASK_DATA[selectedTask] && (

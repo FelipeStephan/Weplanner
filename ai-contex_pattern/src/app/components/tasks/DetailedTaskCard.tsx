@@ -1,26 +1,60 @@
-import { Calendar, Paperclip, MessageCircle, MoreHorizontal, CheckSquare, AlertTriangle, Clock } from 'lucide-react';
-import { PriorityBadge } from '../shared/PriorityBadge';
-import { TagBadge } from '../shared/TagBadge';
+import {
+  AlertTriangle,
+  Calendar,
+  Check,
+  CheckSquare,
+  Clock,
+  MessageCircle,
+  MoreHorizontal,
+  Paperclip,
+} from 'lucide-react';
 import { AvatarStack } from '../shared/AvatarStack';
+import { PriorityBadge } from '../shared/PriorityBadge';
 import { ProgressBar } from '../shared/ProgressBar';
+import { TagBadge } from '../shared/TagBadge';
 import { StatusBadge } from './StatusBadge';
 
 interface DetailedTaskCardProps {
   title: string;
   description?: string;
   priority: 'low' | 'medium' | 'high' | 'urgent';
-  status: 'todo' | 'in-progress' | 'review' | 'completed' | 'blocked' | 'archived' | 'new';
-  subtasks: { completed: number; total: number };
+  status:
+    | 'todo'
+    | 'in-progress'
+    | 'review'
+    | 'completed'
+    | 'blocked'
+    | 'archived'
+    | 'new';
+  subtasks?: { completed: number; total: number };
   progress: number;
   dueDate: string;
   dateAlert?: 'approaching' | 'overdue';
-  tags: Array<{ label: string; color: 'orange' | 'blue' | 'green' | 'purple' | 'pink' | 'yellow' | 'red' | 'gray' }>;
+  tags: Array<{
+    label: string;
+    color:
+      | 'orange'
+      | 'blue'
+      | 'green'
+      | 'purple'
+      | 'pink'
+      | 'yellow'
+      | 'red'
+      | 'gray';
+  }>;
   assignees: Array<{ name: string; image?: string }>;
   attachments?: number;
   comments?: number;
   credits?: number;
   client?: { name: string; image?: string };
   onClick?: () => void;
+  actions?: React.ReactNode;
+  showCompleteButton?: boolean;
+  showProgressBar?: boolean;
+  showDateAlert?: boolean;
+  onToggleComplete?: () => void;
+  isCompleting?: boolean;
+  isMovingToCompleted?: boolean;
 }
 
 export function DetailedTaskCard({
@@ -39,21 +73,31 @@ export function DetailedTaskCard({
   credits,
   client,
   onClick,
+  actions,
+  showCompleteButton = true,
+  showProgressBar = true,
+  showDateAlert = true,
+  onToggleComplete,
+  isCompleting = false,
+  isMovingToCompleted = false,
 }: DetailedTaskCardProps) {
-  const progressColor = progress === 100 ? 'success' : progress >= 50 ? 'blue' : 'primary';
+  const progressColor =
+    progress === 100 ? 'success' : progress >= 50 ? 'blue' : 'primary';
+  const isCompleted = status === 'completed' || isCompleting || isMovingToCompleted;
+  const hasSubtasks = Boolean(subtasks && subtasks.total > 0);
 
   const dateAlertConfig = {
     approaching: {
-      bg: 'bg-[#fef9c3]',
-      text: 'text-[#a16207]',
-      border: 'border-[#feba31]/30',
+      bg: 'bg-[#fef9c3] dark:bg-[#2a220f]',
+      text: 'text-[#a16207] dark:text-[#d89b18]',
+      border: 'border-[#feba31]/30 dark:border-[#69511a]',
       icon: Clock,
       label: 'Prazo se aproximando',
     },
     overdue: {
-      bg: 'bg-[#fee2e2]',
-      text: 'text-[#dc2626]',
-      border: 'border-[#f32c2c]/30',
+      bg: 'bg-[#fee2e2] dark:bg-[#311514]',
+      text: 'text-[#dc2626] dark:text-[#ff4d4f]',
+      border: 'border-[#f32c2c]/30 dark:border-[#7c2323]',
       icon: AlertTriangle,
       label: 'Atrasado',
     },
@@ -63,99 +107,154 @@ export function DetailedTaskCard({
 
   return (
     <div
-      className="bg-white border border-[#e5e5e5] rounded-2xl p-5 hover:shadow-md transition-all duration-200 cursor-pointer group"
+      className={`border rounded-[26px] p-5 transition-all duration-300 cursor-pointer group ${
+        isCompleted
+          ? 'bg-[linear-gradient(135deg,#f9fffb_0%,#eef8f2_100%)] border-[#d9efe2] shadow-[0_14px_28px_-18px_rgba(1,147,100,0.35)] dark:bg-[linear-gradient(135deg,#122619_0%,#111f16_100%)] dark:border-[#1e5034] dark:shadow-[0_18px_36px_-20px_rgba(1,147,100,0.35)]'
+          : 'bg-white border-[#e5e5e5] hover:shadow-md dark:bg-[#151516] dark:border-[#2a2a2a]'
+      } ${isCompleting ? 'scale-[1.015] ring-2 ring-[#22c55e]/45 shadow-[0_22px_40px_-20px_rgba(22,163,74,0.72)]' : ''}`}
       onClick={onClick}
     >
-      {/* Header: Priority + Status NOVO + Menu */}
-      <div className="flex items-center justify-between mb-3">
+      <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <PriorityBadge priority={priority} size="sm" />
           {status === 'new' && <StatusBadge status="new" />}
         </div>
-        <button
-          className="opacity-0 group-hover:opacity-100 p-1 rounded-md hover:bg-[#f5f5f5] transition-all"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <MoreHorizontal className="h-4 w-4 text-[#a3a3a3]" />
-        </button>
+
+        <div className="flex items-center gap-2">
+          {actions ?? (
+            <button
+              className="opacity-0 group-hover:opacity-100 rounded-md p-1 transition-all hover:bg-[#f5f5f5] dark:hover:bg-[#232325]"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <MoreHorizontal className="h-4 w-4 text-[#a3a3a3]" />
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Date Alert Badge */}
-      {alertInfo && (
-        <div className={`flex items-center gap-2 px-3 py-2 rounded-xl ${alertInfo.bg} ${alertInfo.text} mb-3`}>
+      {alertInfo && showDateAlert && (
+        <div
+          className={`mb-3 flex items-center gap-2 rounded-xl border px-3 py-2 ${alertInfo.bg} ${alertInfo.text} ${alertInfo.border}`}
+        >
           <alertInfo.icon className="h-3.5 w-3.5 shrink-0" />
           <span className="text-xs font-semibold">{alertInfo.label}</span>
-          <span className="text-[10px] font-medium opacity-70 ml-auto">{dueDate}</span>
+          <span className="ml-auto text-[10px] font-medium opacity-70">
+            {dueDate}
+          </span>
         </div>
       )}
 
-      {/* Title */}
-      <h3 className="font-semibold text-[#171717] mb-1.5 line-clamp-2 group-hover:text-[#ff5623] transition-colors">
-        {title}
-      </h3>
+      <div className="mb-1.5 relative">
+        {showCompleteButton && (
+          <button
+            className={`group/check absolute left-0 top-0.5 z-10 flex h-6 w-6 items-center justify-center rounded-full border transition-all duration-300 will-change-transform ${
+              isCompleted
+                ? 'border-[#16a34a] bg-[#16a34a] text-white opacity-100 shadow-[0_10px_24px_-14px_rgba(22,163,74,0.75)]'
+                : 'border-[#d4d4d4] bg-white text-white opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto hover:border-[#16a34a] hover:bg-[#16a34a] dark:border-[#3a3a3a] dark:bg-[#181819] dark:hover:border-[#22c55e] dark:hover:bg-[#16a34a]'
+            } ${isCompleting ? 'scale-110 shadow-[0_16px_36px_-18px_rgba(22,163,74,0.95)]' : ''}`}
+            onClick={(event) => {
+              event.stopPropagation();
+              onToggleComplete?.();
+            }}
+          >
+            <Check
+              className={`h-3 w-3 transition-all duration-200 ${
+                isCompleted
+                  ? 'scale-100 opacity-100'
+                  : 'scale-75 opacity-0 group-hover/check:scale-100 group-hover/check:opacity-100'
+              } ${isCompleting ? 'animate-pulse' : ''}`}
+            />
+          </button>
+        )}
+        <h3
+          className={`line-clamp-2 text-[19px] font-semibold leading-[1.3] text-[#171717] transition-all duration-300 group-hover:text-[#ff5623] dark:text-white ${
+            showCompleteButton && (isCompleted ? 'pl-9' : 'group-hover:pl-9')
+          }`}
+        >
+          {title}
+        </h3>
+      </div>
 
-      {/* Description */}
       {description && (
-        <p className="text-sm text-[#737373] mb-4 line-clamp-2">
+        <p className="mb-4 line-clamp-2 text-sm text-[#737373] dark:text-[#9a9a9f]">
           {description}
         </p>
       )}
 
-      {/* Subtasks */}
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-1.5 text-[#987dfe]">
-          <CheckSquare className="h-3.5 w-3.5" />
-          <span className="text-xs font-medium">Subtarefas</span>
+      {hasSubtasks && (
+        <div className="mb-2 flex items-center justify-between">
+          <div className="flex items-center gap-1.5 text-[#987dfe]">
+            <CheckSquare className="h-3.5 w-3.5" />
+            <span className="text-xs font-medium">Subtarefas</span>
+          </div>
+          <span className="text-xs font-semibold text-[#525252] dark:text-[#d6d6d9]">
+            {subtasks?.completed}/{subtasks?.total}
+          </span>
         </div>
-        <span className="text-xs font-semibold text-[#525252]">
-          {subtasks.completed}/{subtasks.total}
-        </span>
-      </div>
+      )}
 
-      {/* Progress */}
-      <ProgressBar value={progress} color={progressColor} size="sm" showLabel />
+      {showProgressBar && (
+        <div className={hasSubtasks ? '' : 'mt-1'}>
+          <ProgressBar value={progress} color={progressColor} size="sm" showLabel />
+        </div>
+      )}
 
-      {/* Due date + Status */}
-      <div className="flex items-center justify-between mt-3 mb-3">
-        <div className="flex items-center gap-1.5 text-xs text-[#737373]">
+      <div className={`${showProgressBar ? 'mt-3' : 'mt-1'} mb-3 flex items-center justify-between`}>
+        <div className="flex items-center gap-1.5 text-xs text-[#737373] dark:text-[#9a9a9f]">
           <Calendar className="h-3.5 w-3.5" />
           <span>
-            Entrega: <span className={`font-medium ${dateAlert === 'overdue' ? 'text-[#f32c2c]' : dateAlert === 'approaching' ? 'text-[#ca8a04]' : 'text-[#ff5623]'}`}>{dueDate}</span>
+            Entrega:{' '}
+            <span
+              className={`font-medium ${
+                dateAlert === 'overdue'
+                  ? 'text-[#f32c2c] dark:text-[#ff4d4f]'
+                  : dateAlert === 'approaching'
+                    ? 'text-[#ca8a04] dark:text-[#d89b18]'
+                    : 'text-[#ff5623]'
+              }`}
+            >
+              {dueDate}
+            </span>
           </span>
         </div>
         {status !== 'new' && <StatusBadge status={status} />}
       </div>
 
-      {/* Tags */}
-      <div className="flex flex-wrap gap-1.5 mb-4">
-        {tags.map((tag, i) => (
-          <TagBadge key={i} label={tag.label} color={tag.color} />
+      <div className="mb-4 flex flex-wrap gap-1.5">
+        {tags.map((tag, index) => (
+          <TagBadge key={index} label={tag.label} color={tag.color} />
         ))}
       </div>
 
-      {/* Client */}
       {client && (
-        <div className="flex items-center justify-between mb-3 px-3 py-2 bg-[#f5f5f5] rounded-xl">
-          <span className="text-[10px] font-semibold text-[#a3a3a3] uppercase tracking-wide">Cliente</span>
+        <div className="mb-3 flex items-center justify-between rounded-xl bg-[#f5f5f5] px-3 py-2 dark:bg-[#232325]">
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-[#a3a3a3] dark:text-[#8f8f92]">
+            Cliente
+          </span>
           <div className="flex items-center gap-1.5">
             {client.image ? (
-              <img src={client.image} alt={client.name} className="w-5 h-5 rounded-full object-cover" />
+              <img
+                src={client.image}
+                alt={client.name}
+                className="h-5 w-5 rounded-full object-cover"
+              />
             ) : (
-              <div className="w-5 h-5 rounded-full bg-[#987dfe] flex items-center justify-center text-white text-[8px] font-semibold">
+              <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[#987dfe] text-[8px] font-semibold text-white">
                 {client.name.charAt(0)}
               </div>
             )}
-            <span className="text-xs font-semibold text-[#525252]">{client.name}</span>
+            <span className="text-xs font-semibold text-[#525252] dark:text-[#d6d6d9]">
+              {client.name}
+            </span>
           </div>
         </div>
       )}
 
-      {/* Footer: Avatars + Meta */}
-      <div className="flex items-center justify-between pt-3 border-t border-dashed border-[#e5e5e5]">
+      <div className="flex items-center justify-between border-t border-dashed border-[#e5e5e5] pt-3 dark:border-[#2f3132]">
         <AvatarStack avatars={assignees} max={4} size="sm" />
-        <div className="flex items-center gap-3 text-xs text-[#a3a3a3]">
+        <div className="flex items-center gap-3 text-xs text-[#a3a3a3] dark:text-[#8f8f92]">
           {credits !== undefined && (
-            <span className="flex items-center gap-1 bg-[#fef3c7] text-[#92400e] px-2 py-0.5 rounded-lg font-semibold">
+            <span className="flex items-center gap-1 rounded-lg bg-[#fef3c7] px-2 py-0.5 font-semibold text-[#92400e] dark:border dark:border-[#69511a] dark:bg-[#2a220f] dark:text-[#d8a744]">
               ◈ {credits}
             </span>
           )}

@@ -26,9 +26,9 @@ interface CreateTaskModalProps {
 
 const PRIORITY_OPTIONS = [
   { value: 'low',    label: 'Baixa',   activeBg: 'bg-[#16a34a]',  passiveBg: 'bg-[#dcfce7]',  passiveText: 'text-[#16a34a]' },
-  { value: 'medium', label: 'Média',   activeBg: 'bg-[#ea580c]',  passiveBg: 'bg-[#ffedd5]',  passiveText: 'text-[#ea580c]' },
+  { value: 'medium', label: 'Média',   activeBg: 'bg-[#ca8a04]',  passiveBg: 'bg-[#fef9c3]',  passiveText: 'text-[#a16207]' },
   { value: 'high',   label: 'Alta',    activeBg: 'bg-[#dc2626]',  passiveBg: 'bg-[#fee2e2]',  passiveText: 'text-[#dc2626]' },
-  { value: 'urgent', label: 'Urgente', activeBg: 'bg-[#a21caf]',  passiveBg: 'bg-[#fae8ff]',  passiveText: 'text-[#a21caf]' },
+  { value: 'urgent', label: 'Urgente', activeBg: 'bg-[#7e22ce]',  passiveBg: 'bg-[#f3e8ff]',  passiveText: 'text-[#7e22ce]' },
 ];
 
 const STATUS_OPTIONS = [
