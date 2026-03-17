@@ -1,11 +1,26 @@
-import { Calendar, Check, MessageCircle, Paperclip } from 'lucide-react';
+import { Calendar, Check, Diamond, MessageCircle, Paperclip } from 'lucide-react';
 import { StatusBadge } from './StatusBadge';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
+import { formatTaskDueDate, getTaskDueDateState } from '../../utils/taskDueDate';
+import { getRichTextPlainText } from '../../utils/richText';
 
 interface TaskCardProps {
   title: string;
   description?: string;
-  status: 'todo' | 'in-progress' | 'review' | 'completed' | 'blocked' | 'archived' | 'new';
+  status:
+    | 'backlog'
+    | 'todo'
+    | 'in_progress'
+    | 'in-progress'
+    | 'adjustments'
+    | 'approval'
+    | 'done'
+    | 'internal-approval'
+    | 'review'
+    | 'completed'
+    | 'blocked'
+    | 'archived'
+    | 'new';
   assignee: {
     name: string;
     avatar?: string;
@@ -40,7 +55,10 @@ export function TaskCard({
   onToggleComplete,
   isCompleting = false,
 }: TaskCardProps) {
-  const isCompleted = status === 'completed' || isCompleting;
+  const isCompleted = status === 'done' || status === 'completed' || isCompleting;
+  const dueDateState = getTaskDueDateState(dueDate);
+  const formattedDueDate = formatTaskDueDate(dueDate);
+  const descriptionPreview = getRichTextPlainText(description);
   const getInitials = (name: string) => {
     return name
       .split(' ')
@@ -68,7 +86,7 @@ export function TaskCard({
               isCompleted
                 ? 'border-[#16a34a] bg-[#16a34a] text-white opacity-100 shadow-[0_10px_24px_-14px_rgba(22,163,74,0.75)]'
                 : 'border-[#d4d4d4] bg-white text-white opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto hover:border-[#16a34a] hover:bg-[#16a34a]'
-            } ${isCompleting ? 'scale-110 shadow-[0_16px_36px_-18px_rgba(22,163,74,0.95)]' : ''}`}
+            } ${isCompleting ? 'scale-110 shadow-[0_16px_36px_-18px_rgba(22,163,74,0.65)]' : ''}`}
             onClick={(event) => {
               event.stopPropagation();
               onToggleComplete?.();
@@ -95,9 +113,9 @@ export function TaskCard({
       </div>
       
       {/* Description */}
-      {description && !hideDescription && (
+      {descriptionPreview && !hideDescription && (
         <p className="text-sm text-[#525252] mb-4 line-clamp-2">
-          {description}
+          {descriptionPreview}
         </p>
       )}
 
@@ -116,14 +134,25 @@ export function TaskCard({
         {/* Meta info */}
         <div className="flex items-center gap-3 text-xs text-[#737373]">
           {credits !== undefined && (
-            <span className="flex items-center gap-1 bg-[#fef3c7] text-[#92400e] px-2 py-0.5 rounded-lg font-semibold">
-              ◈ {credits}
+            <span className="flex items-center gap-1 rounded-lg bg-[#fef3c7] px-2 py-0.5 font-semibold text-[#92400e] dark:border dark:border-[#69511a] dark:bg-[#2a220f] dark:text-[#d8a744]">
+              <Diamond className="h-3 w-3" />
+              {credits}
             </span>
           )}
           {dueDate && (
             <span className="flex items-center gap-1">
               <Calendar className="h-3 w-3" />
-              {dueDate}
+              <span
+                className={
+                  dueDateState === 'overdue'
+                    ? 'text-[#f32c2c] dark:text-[#ff4d4f]'
+                    : dueDateState === 'warning'
+                      ? 'text-[#ca8a04] dark:text-[#d89b18]'
+                      : 'text-[#737373] dark:text-[#9a9a9f]'
+                }
+              >
+                {formattedDueDate}
+              </span>
             </span>
           )}
           {commentsCount > 0 && (

@@ -4,6 +4,7 @@ import {
   Check,
   CheckSquare,
   Clock,
+  Diamond,
   MessageCircle,
   MoreHorizontal,
   Paperclip,
@@ -13,14 +14,22 @@ import { PriorityBadge } from '../shared/PriorityBadge';
 import { ProgressBar } from '../shared/ProgressBar';
 import { TagBadge } from '../shared/TagBadge';
 import { StatusBadge } from './StatusBadge';
+import { formatTaskDueDate, getTaskDueDateState } from '../../utils/taskDueDate';
+import { getRichTextPlainText } from '../../utils/richText';
 
 interface DetailedTaskCardProps {
   title: string;
   description?: string;
   priority: 'low' | 'medium' | 'high' | 'urgent';
   status:
+    | 'backlog'
     | 'todo'
+    | 'in_progress'
     | 'in-progress'
+    | 'adjustments'
+    | 'approval'
+    | 'done'
+    | 'internal-approval'
     | 'review'
     | 'completed'
     | 'blocked'
@@ -81,10 +90,19 @@ export function DetailedTaskCard({
   isCompleting = false,
   isMovingToCompleted = false,
 }: DetailedTaskCardProps) {
-  const progressColor =
-    progress === 100 ? 'success' : progress >= 50 ? 'blue' : 'primary';
-  const isCompleted = status === 'completed' || isCompleting || isMovingToCompleted;
+  const progressColor = 'success';
+  const descriptionPreview = getRichTextPlainText(description);
+  const isCompleted =
+    status === 'done' || status === 'completed' || isCompleting || isMovingToCompleted;
   const hasSubtasks = Boolean(subtasks && subtasks.total > 0);
+  const dueDateState = getTaskDueDateState(dueDate);
+  const normalizedDateAlert =
+    dueDateState === 'overdue'
+      ? 'overdue'
+      : dueDateState === 'warning'
+        ? 'approaching'
+        : dateAlert;
+  const formattedDueDate = formatTaskDueDate(dueDate);
 
   const dateAlertConfig = {
     approaching: {
@@ -103,15 +121,15 @@ export function DetailedTaskCard({
     },
   };
 
-  const alertInfo = dateAlert ? dateAlertConfig[dateAlert] : null;
+  const alertInfo = normalizedDateAlert ? dateAlertConfig[normalizedDateAlert] : null;
 
   return (
     <div
       className={`border rounded-[26px] p-5 transition-all duration-300 cursor-pointer group ${
         isCompleted
-          ? 'bg-[linear-gradient(135deg,#f9fffb_0%,#eef8f2_100%)] border-[#d9efe2] shadow-[0_14px_28px_-18px_rgba(1,147,100,0.35)] dark:bg-[linear-gradient(135deg,#122619_0%,#111f16_100%)] dark:border-[#1e5034] dark:shadow-[0_18px_36px_-20px_rgba(1,147,100,0.35)]'
+          ? 'bg-white border-[#e5e5e5] shadow-[0_16px_28px_-24px_rgba(15,23,42,0.16)] dark:bg-[#151516] dark:border-[#2a2a2a] dark:shadow-[0_16px_28px_-24px_rgba(0,0,0,0.45)]'
           : 'bg-white border-[#e5e5e5] hover:shadow-md dark:bg-[#151516] dark:border-[#2a2a2a]'
-      } ${isCompleting ? 'scale-[1.015] ring-2 ring-[#22c55e]/45 shadow-[0_22px_40px_-20px_rgba(22,163,74,0.72)]' : ''}`}
+      } ${isCompleting ? 'scale-[1.015] ring-2 ring-[#ff5623]/25 shadow-[0_22px_40px_-22px_rgba(255,86,35,0.38)]' : ''}`}
       onClick={onClick}
     >
       <div className="mb-3 flex items-center justify-between">
@@ -139,7 +157,7 @@ export function DetailedTaskCard({
           <alertInfo.icon className="h-3.5 w-3.5 shrink-0" />
           <span className="text-xs font-semibold">{alertInfo.label}</span>
           <span className="ml-auto text-[10px] font-medium opacity-70">
-            {dueDate}
+            {formattedDueDate}
           </span>
         </div>
       )}
@@ -151,7 +169,7 @@ export function DetailedTaskCard({
               isCompleted
                 ? 'border-[#16a34a] bg-[#16a34a] text-white opacity-100 shadow-[0_10px_24px_-14px_rgba(22,163,74,0.75)]'
                 : 'border-[#d4d4d4] bg-white text-white opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto hover:border-[#16a34a] hover:bg-[#16a34a] dark:border-[#3a3a3a] dark:bg-[#181819] dark:hover:border-[#22c55e] dark:hover:bg-[#16a34a]'
-            } ${isCompleting ? 'scale-110 shadow-[0_16px_36px_-18px_rgba(22,163,74,0.95)]' : ''}`}
+            } ${isCompleting ? 'scale-110 shadow-[0_16px_36px_-18px_rgba(22,163,74,0.65)]' : ''}`}
             onClick={(event) => {
               event.stopPropagation();
               onToggleComplete?.();
@@ -175,9 +193,9 @@ export function DetailedTaskCard({
         </h3>
       </div>
 
-      {description && (
+      {descriptionPreview && (
         <p className="mb-4 line-clamp-2 text-sm text-[#737373] dark:text-[#9a9a9f]">
-          {description}
+          {descriptionPreview}
         </p>
       )}
 
@@ -206,14 +224,14 @@ export function DetailedTaskCard({
             Entrega:{' '}
             <span
               className={`font-medium ${
-                dateAlert === 'overdue'
+                dueDateState === 'overdue'
                   ? 'text-[#f32c2c] dark:text-[#ff4d4f]'
-                  : dateAlert === 'approaching'
+                  : dueDateState === 'warning'
                     ? 'text-[#ca8a04] dark:text-[#d89b18]'
-                    : 'text-[#ff5623]'
+                    : 'text-[#737373] dark:text-[#9a9a9f]'
               }`}
             >
-              {dueDate}
+              {formattedDueDate}
             </span>
           </span>
         </div>
@@ -255,7 +273,8 @@ export function DetailedTaskCard({
         <div className="flex items-center gap-3 text-xs text-[#a3a3a3] dark:text-[#8f8f92]">
           {credits !== undefined && (
             <span className="flex items-center gap-1 rounded-lg bg-[#fef3c7] px-2 py-0.5 font-semibold text-[#92400e] dark:border dark:border-[#69511a] dark:bg-[#2a220f] dark:text-[#d8a744]">
-              ◈ {credits}
+              <Diamond className="h-3 w-3" />
+              {credits}
             </span>
           )}
           {attachments > 0 && (

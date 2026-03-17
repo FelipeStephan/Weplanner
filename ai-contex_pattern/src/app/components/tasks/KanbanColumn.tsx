@@ -10,6 +10,7 @@ interface KanbanColumnProps {
   className?: string;
   contentClassName?: string;
   headerMeta?: React.ReactNode;
+  headerLeading?: React.ReactNode;
   actions?: React.ReactNode;
 }
 
@@ -22,6 +23,7 @@ export function KanbanColumn({
   className,
   contentClassName,
   headerMeta,
+  headerLeading,
   actions,
 }: KanbanColumnProps) {
   return (
@@ -34,6 +36,7 @@ export function KanbanColumn({
       {/* Column Header */}
       <div className="flex items-start justify-between gap-3 p-4 pb-2">
         <div className="flex items-center gap-2">
+          {headerLeading}
           {Icon && <Icon className="h-4 w-4" style={{ color: accentColor }} />}
           <h3 className="font-semibold text-sm text-[#171717] dark:text-white uppercase tracking-wide">{title}</h3>
           {count !== undefined && (

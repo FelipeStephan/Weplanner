@@ -1,5 +1,7 @@
-import { AlertTriangle, Calendar, Clock, Flag } from 'lucide-react';
+import { AlertTriangle, Calendar, Clock, Diamond, Flag } from 'lucide-react';
 import { StatusBadge } from './StatusBadge';
+import { formatTaskDueDate, getTaskDueDateState } from '../../utils/taskDueDate';
+import { getRichTextPlainText } from '../../utils/richText';
 
 interface SimpleTaskCardProps {
   title: string;
@@ -8,9 +10,15 @@ interface SimpleTaskCardProps {
   dueDate: string;
   dateAlert?: 'approaching' | 'overdue';
   status?:
+    | 'backlog'
     | 'new'
     | 'todo'
+    | 'in_progress'
     | 'in-progress'
+    | 'adjustments'
+    | 'approval'
+    | 'done'
+    | 'internal-approval'
     | 'review'
     | 'completed'
     | 'blocked'
@@ -44,6 +52,10 @@ export function SimpleTaskCard({
   };
 
   const currentPriority = priorityConfig[priority];
+  const derivedDateState = getTaskDueDateState(dueDate);
+  const normalizedAlert = derivedDateState === 'overdue' ? 'overdue' : derivedDateState === 'warning' ? 'approaching' : dateAlert;
+  const formattedDueDate = formatTaskDueDate(dueDate);
+  const descriptionPreview = getRichTextPlainText(description);
 
   const getInitials = (name: string) =>
     name
@@ -66,7 +78,7 @@ export function SimpleTaskCard({
     },
   };
 
-  const alertInfo = dateAlert ? dateAlertConfig[dateAlert] : null;
+  const alertInfo = normalizedAlert ? dateAlertConfig[normalizedAlert] : null;
 
   return (
     <div
@@ -88,12 +100,12 @@ export function SimpleTaskCard({
             className={`inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1 text-xs font-semibold ${alertInfo.bg} ${alertInfo.text}`}
           >
             <alertInfo.icon className="h-3 w-3" />
-            {dueDate}
+            {formattedDueDate}
           </span>
         ) : (
           <span className="flex items-center gap-1.5 rounded-xl bg-[#f5f5f5] px-2.5 py-1 text-xs font-semibold text-[#525252] dark:bg-[#232325] dark:text-[#8f8f92]">
             <Calendar className="h-3 w-3" />
-            {dueDate}
+            {formattedDueDate}
           </span>
         )}
       </div>
@@ -102,9 +114,9 @@ export function SimpleTaskCard({
         {title}
       </h3>
 
-      {description && (
+      {descriptionPreview && (
         <p className="mb-4 line-clamp-3 text-sm text-[#737373] dark:text-[#9a9a9f]">
-          {description}
+          {descriptionPreview}
         </p>
       )}
 
@@ -162,7 +174,8 @@ export function SimpleTaskCard({
         <div className="flex items-center gap-2">
           {credits !== undefined && (
             <span className="flex items-center gap-1 rounded-lg bg-[#fef3c7] px-2 py-0.5 text-xs font-semibold text-[#92400e] dark:border dark:border-[#69511a] dark:bg-[#2a220f] dark:text-[#d8a744]">
-              ◈ {credits}
+              <Diamond className="h-3 w-3" />
+              {credits}
             </span>
           )}
           <div className="relative h-8 w-8">

@@ -48,3 +48,35 @@
   animation: card-fly-to-completed 580ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
   will-change: transform, opacity;
 }
+
+@keyframes weplanner-sidebar-banner-shift {
+  0% {
+    background-position: 0% 50%;
+    filter: hue-rotate(0deg);
+  }
+  50% {
+    background-position: 100% 50%;
+    filter: hue-rotate(8deg);
+  }
+  100% {
+    background-position: 0% 50%;
+    filter: hue-rotate(0deg);
+  }
+}
+
+.weplanner-sidebar-banner {
+  background:
+    radial-gradient(circle at 18% 28%, rgba(255, 214, 170, 0.45), transparent 26%),
+    radial-gradient(circle at 82% 24%, rgba(255, 244, 210, 0.32), transparent 24%),
+    linear-gradient(120deg, #ff5c1b 0%, #ff7a2f 24%, #ff8e53 46%, #ff6d34 68%, #ff5c1b 100%);
+  background-size: 180% 180%;
+  animation: weplanner-sidebar-banner-shift 9s ease-in-out infinite;
+}
+
+.dark .weplanner-sidebar-banner {
+  background:
+    radial-gradient(circle at 20% 26%, rgba(255, 196, 112, 0.2), transparent 28%),
+    radial-gradient(circle at 78% 20%, rgba(255, 244, 210, 0.08), transparent 24%),
+    linear-gradient(120deg, #9a3412 0%, #c2410c 28%, #ea580c 52%, #b45309 74%, #9a3412 100%);
+  background-size: 180% 180%;
+}

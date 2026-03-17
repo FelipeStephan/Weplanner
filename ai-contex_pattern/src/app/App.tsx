@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   LayoutDashboard,
   CheckSquare,
@@ -84,7 +84,14 @@ import { PromptBuilder } from "./components/shared/PromptBuilder";
 import { TaskDetailModal } from "./components/tasks/TaskDetailModal";
 import { CreateTaskModal } from "./components/tasks/CreateTaskModal";
 import { UserProfileCard } from "./components/shared/UserProfileCard";
+import { ClientLibraryModal } from "./components/shared/ClientLibraryModal";
+import {
+  AppShellSidebar,
+} from "./components/shared/AppShellChrome";
+import { CreateBoardModal } from "./components/boards/CreateBoardModal";
 import { KanbanWorkspacePage } from "./components/boards/KanbanWorkspacePage";
+import { OverviewDashboardPage } from "./components/dashboard/OverviewDashboardPage";
+import { ReportsDashboardPage } from "./components/reports/ReportsDashboardPage";
 import {
   NotificationCard,
   NotificationList,
@@ -99,7 +106,12 @@ import {
 } from "./components/ui/avatar";
 import Logo from "../imports/Logo-5014-4801";
 import Group from "../imports/Group";
-import WePlannerLogo from "figma:asset/57ea582b45f1f027f6126c1f620391f7de16b017.png";
+import WePlannerLogo from "../assets/logo-weplanner.png";
+import { boardsRepository } from "../repositories/boardsRepository";
+import { clientLibraryRepository } from "../repositories/clientLibraryRepository";
+import { createInitialKanbanWorkspaceSnapshot, DEFAULT_BOARD_ID } from "../demo/kanbanWorkspaceSeed";
+import { BOARD_DIRECTORY_USERS } from "../demo/boardDirectory";
+import type { BoardCreateInput, BoardViewerContext } from "../domain/boards/contracts";
 
 const AVATAR_URLS = [
   "https://images.unsplash.com/photo-1655249493799-9cee4fe983bb?w=80&h=80&fit=crop&crop=face",
@@ -130,13 +142,57 @@ type Section =
   | "icons"
   | "notifications";
 type Role = "client" | "manager" | "collaborator";
-type PageView = "design-system" | "kanban-workspace";
+type PageView = "overview-dashboard" | "design-system" | "kanban-workspace" | "reports-dashboard";
 
-const getPageFromHash = (): PageView =>
-  typeof window !== "undefined" &&
-  window.location.hash === "#/kanban-workspace"
-    ? "kanban-workspace"
-    : "design-system";
+const getRouteStateFromHash = (): {
+  pageView: PageView;
+  boardId: string | null;
+} => {
+  if (typeof window === "undefined") {
+    return {
+      pageView: "overview-dashboard",
+      boardId: DEFAULT_BOARD_ID,
+    };
+  }
+
+  const rawHash = window.location.hash.replace(/^#/, "");
+  const [path, queryString = ""] = rawHash.split("?");
+  const query = new URLSearchParams(queryString);
+  const boardId = query.get("board");
+
+  if (path === "/" || path === "/overview-dashboard") {
+    return {
+      pageView: "overview-dashboard",
+      boardId: DEFAULT_BOARD_ID,
+    };
+  }
+
+  if (path === "/design-system") {
+    return {
+      pageView: "design-system",
+      boardId,
+    };
+  }
+
+  if (path === "/kanban-workspace") {
+    return {
+      pageView: "kanban-workspace",
+      boardId: boardId || DEFAULT_BOARD_ID,
+    };
+  }
+
+  if (path === "/reports-dashboard") {
+    return {
+      pageView: "reports-dashboard",
+      boardId,
+    };
+  }
+
+  return {
+    pageView: "overview-dashboard",
+    boardId,
+  };
+};
 
 const MOCK_NOTIFICATIONS: NotificationItem[] = [
   {
@@ -322,8 +378,12 @@ const ICON_GROUPS: {
 ];
 
 export default function App() {
+  const initialRouteState = useMemo(() => getRouteStateFromHash(), []);
   const [pageView, setPageView] =
-    useState<PageView>(getPageFromHash);
+    useState<PageView>(initialRouteState.pageView);
+  const [selectedBoardId, setSelectedBoardId] = useState<string>(
+    initialRouteState.boardId || DEFAULT_BOARD_ID,
+  );
   const [activeSection, setActiveSection] =
     useState<Section>("all");
   const [modalOpen, setModalOpen] = useState(false);
@@ -333,6 +393,7 @@ export default function App() {
   >(null);
   const [activeRole, setActiveRole] = useState<Role>("manager");
   const [darkMode, setDarkMode] = useState(false);
+  const [collapsedSidebar, setCollapsedSidebar] = useState(false);
   const [profileUser, setProfileUser] = useState<{
     name: string;
     image?: string;
@@ -342,6 +403,20 @@ export default function App() {
   const [profileDemoOpen, setProfileDemoOpen] = useState(false);
   const [profileDemoAnchor, setProfileDemoAnchor] =
     useState<HTMLElement | null>(null);
+  const [createBoardModalOpen, setCreateBoardModalOpen] = useState(false);
+  const [selectedClientLibraryId, setSelectedClientLibraryId] = useState<string | null>(null);
+
+  const initialWorkspaceSeed = useMemo(
+    () => createInitialKanbanWorkspaceSnapshot(),
+    [],
+  );
+  const [workspaceSnapshot, setWorkspaceSnapshot] = useState(() =>
+    boardsRepository.loadWorkspace(initialWorkspaceSeed),
+  );
+
+  const refreshWorkspaceSnapshot = () => {
+    setWorkspaceSnapshot(boardsRepository.loadWorkspace(initialWorkspaceSeed));
+  };
 
   useEffect(() => {
     if (darkMode) {
@@ -351,9 +426,60 @@ export default function App() {
     }
   }, [darkMode]);
 
+  const activeViewerContext = useMemo<BoardViewerContext>(() => {
+    if (activeRole === "client") {
+      return {
+        role: "client",
+        userId: "user-luiza-arcadia",
+      };
+    }
+
+    if (activeRole === "collaborator") {
+      return {
+        role: "collaborator",
+        userId: "user-carlos",
+      };
+    }
+
+    return {
+      role: "manager",
+      userId: "user-ana",
+    };
+  }, [activeRole]);
+
+  const visibleBoards = useMemo(
+    () => boardsRepository.listVisible(initialWorkspaceSeed, activeViewerContext),
+    [activeViewerContext, initialWorkspaceSeed, workspaceSnapshot],
+  );
+
+  const activeShellUser = useMemo(() => {
+    if (activeRole === "client") {
+      return (
+        BOARD_DIRECTORY_USERS.find((member) => member.id === "user-luiza-arcadia") || {
+          name: "Luiza Arcadia",
+          image: AVATAR_URLS[0],
+        }
+      );
+    }
+
+    const targetUserId =
+      activeRole === "collaborator" ? "user-carlos" : "user-ana";
+
+    return (
+      BOARD_DIRECTORY_USERS.find((member) => member.id === targetUserId) || {
+        name: "Ana Silva",
+        image: AVATAR_URLS[0],
+      }
+    );
+  }, [activeRole]);
+
   useEffect(() => {
     const syncPageFromHash = () => {
-      setPageView(getPageFromHash());
+      const routeState = getRouteStateFromHash();
+      setPageView(routeState.pageView);
+      if (routeState.boardId) {
+        setSelectedBoardId(routeState.boardId);
+      }
     };
 
     syncPageFromHash();
@@ -364,12 +490,43 @@ export default function App() {
     };
   }, []);
 
-  const openKanbanWorkspacePage = () => {
-    window.location.hash = "/kanban-workspace";
+  useEffect(() => {
+    if (visibleBoards.length === 0) {
+      return;
+    }
+
+    if (!visibleBoards.some((board) => board.id === selectedBoardId)) {
+      setSelectedBoardId(visibleBoards[0].id);
+    }
+  }, [selectedBoardId, visibleBoards]);
+
+  const openKanbanWorkspacePage = (boardId?: string, cardId?: string) => {
+    const nextBoardId = boardId || selectedBoardId || visibleBoards[0]?.id || DEFAULT_BOARD_ID;
+    setSelectedBoardId(nextBoardId);
+    const params = new URLSearchParams({ board: nextBoardId });
+    if (cardId) {
+      params.set("card", cardId);
+    }
+    window.location.hash = `/kanban-workspace?${params.toString()}`;
+  };
+
+  const openOverviewDashboardPage = () => {
+    window.location.hash = "/";
   };
 
   const openDesignSystemPage = () => {
-    window.location.hash = "/";
+    window.location.hash = "/design-system";
+  };
+
+  const openReportsDashboardPage = () => {
+    window.location.hash = "/reports-dashboard";
+  };
+
+  const handleCreateBoard = (payload: BoardCreateInput) => {
+    const { board, snapshot } = boardsRepository.create(initialWorkspaceSeed, payload);
+    setWorkspaceSnapshot(snapshot);
+    setCreateBoardModalOpen(false);
+    openKanbanWorkspacePage(board.id);
   };
 
   const handleAvatarClick = (
@@ -884,7 +1041,7 @@ export default function App() {
     <div
       className={`min-h-screen bg-[#f5f5f7] dark:bg-[#0a0a0a] transition-colors duration-300`}
     >
-      {pageView === "design-system" && (
+      {false && (
       <>
       {/* Topbar */}
       <header className="sticky top-0 z-50 h-14 bg-white/80 dark:bg-[#141414]/80 backdrop-blur-xl border-b border-[#e5e5e5]/60 dark:border-[#2a2a2a]/60 px-4 md:px-6">
@@ -919,13 +1076,19 @@ export default function App() {
                   onClick={
                     item === "Kanban Workspace"
                       ? openKanbanWorkspacePage
-                      : undefined
+                      : item === "Reports"
+                        ? openReportsDashboardPage
+                        : undefined
                   }
                   className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                     item === "Kanban Workspace"
                       ? pageView === "kanban-workspace"
                         ? "bg-[#ff5623]/10 text-[#ff5623]"
                         : "text-[#737373] hover:text-[#171717] dark:hover:text-white hover:bg-[#f5f5f5] dark:hover:bg-[#2a2a2a]"
+                      : item === "Reports"
+                        ? pageView === "reports-dashboard"
+                          ? "bg-[#ff5623]/10 text-[#ff5623]"
+                          : "text-[#737373] hover:text-[#171717] dark:hover:text-white hover:bg-[#f5f5f5] dark:hover:bg-[#2a2a2a]"
                       : item === "Tasks" && pageView === "design-system"
                       ? "bg-[#ff5623]/10 text-[#ff5623]"
                       : "text-[#737373] hover:text-[#171717] dark:hover:text-white hover:bg-[#f5f5f5] dark:hover:bg-[#2a2a2a]"
@@ -1041,24 +1204,86 @@ export default function App() {
       </>
       )}
 
+      <div className="flex min-h-screen">
+        <AppShellSidebar
+          collapsed={collapsedSidebar}
+          onToggleCollapsed={() => setCollapsedSidebar((current) => !current)}
+          activePage={pageView}
+          darkMode={darkMode}
+          onToggleDarkMode={() => setDarkMode(!darkMode)}
+          onOpenOverview={openOverviewDashboardPage}
+          onOpenDesignSystem={openDesignSystemPage}
+          onOpenBoard={() => openKanbanWorkspacePage()}
+          onOpenReports={openReportsDashboardPage}
+          boards={visibleBoards}
+          activeBoardId={selectedBoardId}
+          onSelectBoard={(boardId) => openKanbanWorkspacePage(boardId)}
+          onCreateBoard={() => setCreateBoardModalOpen(true)}
+          canCreateBoards={activeRole === "manager"}
+          userName={activeShellUser.name}
+          userImage={activeShellUser.image}
+          userRole={activeShellUser.role}
+          userTitle={activeShellUser.title}
+          onUserClick={(e) =>
+            handleAvatarClick(
+              {
+                name: activeShellUser.name,
+                image: activeShellUser.image,
+                role: activeShellUser.role,
+                title: activeShellUser.title,
+              },
+              e as any,
+            )
+          }
+        />
+
       {/* Main Content */}
       <main
-        className={`${
-          pageView === "kanban-workspace"
+        className={`min-w-0 flex-1 ${
+          pageView === "overview-dashboard" || pageView === "kanban-workspace" || pageView === "reports-dashboard"
             ? "w-full"
-            : "max-w-[1440px] mx-auto px-4 md:px-6 py-6 md:py-8"
+            : "px-4 md:px-6 py-6 md:py-8"
         }`}
       >
+        {pageView === "overview-dashboard" && (
+          <OverviewDashboardPage
+            snapshot={workspaceSnapshot}
+            viewer={activeViewerContext}
+            currentUser={{
+              id: activeShellUser.id,
+              name: activeShellUser.name,
+              image: activeShellUser.image,
+              role: activeRole,
+            }}
+            onOpenBoard={openKanbanWorkspacePage}
+          />
+        )}
+
         {pageView === "kanban-workspace" && (
           <KanbanWorkspacePage
+            key={selectedBoardId}
+            boardId={selectedBoardId}
             onBackToDesignSystem={openDesignSystemPage}
+            onOpenBoard={openKanbanWorkspacePage}
+            onWorkspaceMetadataChange={refreshWorkspaceSnapshot}
+            canManageBoards={activeRole === "manager"}
             darkMode={darkMode}
             onToggleDarkMode={() => setDarkMode(!darkMode)}
           />
         )}
 
+        {pageView === "reports-dashboard" && (
+          <ReportsDashboardPage
+            onBackToDesignSystem={openDesignSystemPage}
+            onOpenBoard={openKanbanWorkspacePage}
+            darkMode={darkMode}
+            onToggleDarkMode={() => setDarkMode(!darkMode)}
+            isManager={activeRole === "manager"}
+          />
+        )}
+
         {pageView === "design-system" && (
-          <>
+          <div className="mx-auto max-w-[1440px]">
         {/* Page Header */}
         <div className="mb-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
@@ -2648,9 +2873,10 @@ export default function App() {
             </div>
           </section>
         )}
-          </>
+          </div>
         )}
       </main>
+      </div>
 
       {pageView === "design-system" && (
       <footer className="border-t border-[#e5e5e5] dark:border-[#2a2a2a] bg-white/80 dark:bg-[#141414]/80 backdrop-blur-xl py-6">
@@ -2724,9 +2950,21 @@ export default function App() {
             setModalOpen(false);
             setSelectedTask(null);
           }}
+          onOpenClientLibrary={(clientId, clientName) => {
+            const resolvedClientId =
+              clientId ||
+              (clientName ? clientLibraryRepository.getByClientName(clientName)?.id ?? null : null);
+            setSelectedClientLibraryId(resolvedClientId);
+          }}
           task={MODAL_TASK_DATA[selectedTask]}
         />
       )}
+
+      <ClientLibraryModal
+        isOpen={!!selectedClientLibraryId}
+        clientId={selectedClientLibraryId}
+        onClose={() => setSelectedClientLibraryId(null)}
+      />
 
       {/* User Profile Card */}
       <UserProfileCard
@@ -2768,6 +3006,12 @@ export default function App() {
         isOpen={profileDemoOpen}
         onClose={() => setProfileDemoOpen(false)}
         anchorEl={profileDemoAnchor}
+      />
+
+      <CreateBoardModal
+        isOpen={createBoardModalOpen}
+        onClose={() => setCreateBoardModalOpen(false)}
+        onSubmit={(payload) => handleCreateBoard(payload as BoardCreateInput)}
       />
 
       {/* Create Task Modal */}
