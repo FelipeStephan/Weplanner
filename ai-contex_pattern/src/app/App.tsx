@@ -92,6 +92,17 @@ import { CreateBoardModal } from "./components/boards/CreateBoardModal";
 import { KanbanWorkspacePage } from "./components/boards/KanbanWorkspacePage";
 import { OverviewDashboardPage } from "./components/dashboard/OverviewDashboardPage";
 import { ReportsDashboardPage } from "./components/reports/ReportsDashboardPage";
+import { TeamPage } from "./components/team/TeamPage";
+import { ClientOverviewView } from "./components/dashboard/ClientOverviewView";
+import { WorkspaceProvider } from "../context/WorkspaceContext";
+import { WorkspaceSettingsProvider } from "../context/WorkspaceSettingsContext";
+import { WorkspaceSettingsPage } from "./components/settings/WorkspaceSettingsPage";
+import { teamRepository } from "../repositories/teamRepository";
+import { TEAM_DEMO_MEMBERS, TEAM_DEMO_INVITES } from "../demo/teamDemoData";
+import { CLIENTS_DEMO_SEED } from "../demo/clientsDemoData";
+import { clientsRepository } from "../repositories/clientsRepository";
+import { ClientsPage } from "./components/clients/ClientsPage";
+import { BOARD_DIRECTORY_CLIENTS } from "../demo/boardDirectory";
 import {
   NotificationCard,
   NotificationList,
@@ -107,6 +118,7 @@ import {
 import Logo from "../imports/Logo-5014-4801";
 import Group from "../imports/Group";
 import WePlannerLogo from "../assets/logo-weplanner.png";
+import { LoginPage } from "./components/auth/LoginPage";
 import { boardsRepository } from "../repositories/boardsRepository";
 import { clientLibraryRepository } from "../repositories/clientLibraryRepository";
 import { createInitialKanbanWorkspaceSnapshot, DEFAULT_BOARD_ID } from "../demo/kanbanWorkspaceSeed";
@@ -142,7 +154,7 @@ type Section =
   | "icons"
   | "notifications";
 type Role = "client" | "manager" | "collaborator";
-type PageView = "overview-dashboard" | "design-system" | "kanban-workspace" | "reports-dashboard";
+type PageView = "login" | "overview-dashboard" | "design-system" | "kanban-workspace" | "reports-dashboard" | "team" | "settings" | "clients";
 
 const getRouteStateFromHash = (): {
   pageView: PageView;
@@ -150,7 +162,7 @@ const getRouteStateFromHash = (): {
 } => {
   if (typeof window === "undefined") {
     return {
-      pageView: "overview-dashboard",
+      pageView: "login",
       boardId: DEFAULT_BOARD_ID,
     };
   }
@@ -160,7 +172,14 @@ const getRouteStateFromHash = (): {
   const query = new URLSearchParams(queryString);
   const boardId = query.get("board");
 
-  if (path === "/" || path === "/overview-dashboard") {
+  if (path === "/" || path === "" || path === "login") {
+    return {
+      pageView: "login",
+      boardId: DEFAULT_BOARD_ID,
+    };
+  }
+
+  if (path === "/overview-dashboard" || path === "overview-dashboard") {
     return {
       pageView: "overview-dashboard",
       boardId: DEFAULT_BOARD_ID,
@@ -185,6 +204,27 @@ const getRouteStateFromHash = (): {
     return {
       pageView: "reports-dashboard",
       boardId,
+    };
+  }
+
+  if (path === "/team") {
+    return {
+      pageView: "team",
+      boardId: null,
+    };
+  }
+
+  if (path === "/settings") {
+    return {
+      pageView: "settings",
+      boardId: null,
+    };
+  }
+
+  if (path === "/clients") {
+    return {
+      pageView: "clients",
+      boardId: null,
     };
   }
 
@@ -511,7 +551,7 @@ export default function App() {
   };
 
   const openOverviewDashboardPage = () => {
-    window.location.hash = "/";
+    window.location.hash = "/overview-dashboard";
   };
 
   const openDesignSystemPage = () => {
@@ -521,6 +561,27 @@ export default function App() {
   const openReportsDashboardPage = () => {
     window.location.hash = "/reports-dashboard";
   };
+
+  const openTeamPage = () => {
+    window.location.hash = "/team";
+  };
+
+  const openSettingsPage = () => {
+    window.location.hash = "/settings";
+  };
+
+  const openClientsPage = () => {
+    window.location.hash = "/clients";
+  };
+
+  // ── Clients state ────────────────────────────────────────────────────────
+  const [clientsList, setClientsList] = useState(() =>
+    clientsRepository.listAll(CLIENTS_DEMO_SEED)
+  );
+
+  function refreshClients() {
+    setClientsList(clientsRepository.listAll(CLIENTS_DEMO_SEED));
+  }
 
   const handleCreateBoard = (payload: BoardCreateInput) => {
     const { board, snapshot } = boardsRepository.create(initialWorkspaceSeed, payload);
@@ -1037,7 +1098,18 @@ export default function App() {
   const show = (s: Section) =>
     activeSection === "all" || activeSection === s;
 
+  if (pageView === "login") {
+    return (
+      <LoginPage 
+        onLoginSuccess={openOverviewDashboardPage} 
+        darkMode={darkMode} 
+      />
+    );
+  }
+
   return (
+    <WorkspaceSettingsProvider>
+    <WorkspaceProvider>
     <div
       className={`min-h-screen bg-[#f5f5f7] dark:bg-[#0a0a0a] transition-colors duration-300`}
     >
@@ -1208,13 +1280,16 @@ export default function App() {
         <AppShellSidebar
           collapsed={collapsedSidebar}
           onToggleCollapsed={() => setCollapsedSidebar((current) => !current)}
-          activePage={pageView}
+          activePage={pageView as any}
           darkMode={darkMode}
           onToggleDarkMode={() => setDarkMode(!darkMode)}
           onOpenOverview={openOverviewDashboardPage}
           onOpenDesignSystem={openDesignSystemPage}
           onOpenBoard={() => openKanbanWorkspacePage()}
           onOpenReports={openReportsDashboardPage}
+          onOpenTeam={openTeamPage}
+          onOpenSettings={openSettingsPage}
+          onOpenClients={openClientsPage}
           boards={visibleBoards}
           activeBoardId={selectedBoardId}
           onSelectBoard={(boardId) => openKanbanWorkspacePage(boardId)}
@@ -1222,7 +1297,7 @@ export default function App() {
           canCreateBoards={activeRole === "manager"}
           userName={activeShellUser.name}
           userImage={activeShellUser.image}
-          userRole={activeShellUser.role}
+          userRole={activeRole}
           userTitle={activeShellUser.title}
           onUserClick={(e) =>
             handleAvatarClick(
@@ -1240,7 +1315,7 @@ export default function App() {
       {/* Main Content */}
       <main
         className={`min-w-0 flex-1 ${
-          pageView === "overview-dashboard" || pageView === "kanban-workspace" || pageView === "reports-dashboard"
+          pageView === "overview-dashboard" || pageView === "kanban-workspace" || pageView === "reports-dashboard" || pageView === "team" || pageView === "settings" || pageView === "clients"
             ? "w-full"
             : "px-4 md:px-6 py-6 md:py-8"
         }`}
@@ -1279,6 +1354,77 @@ export default function App() {
             darkMode={darkMode}
             onToggleDarkMode={() => setDarkMode(!darkMode)}
             isManager={activeRole === "manager"}
+          />
+        )}
+
+        {pageView === "team" && (
+          <TeamPage
+            members={teamRepository.listMembers(TEAM_DEMO_MEMBERS)}
+            invites={teamRepository.listInvites(TEAM_DEMO_INVITES)}
+            boards={visibleBoards}
+            clients={BOARD_DIRECTORY_CLIENTS}
+            viewerRole={activeRole}
+            viewerId={activeViewerContext.userId ?? ""}
+            onUpdateMember={(id, patch) => {
+              teamRepository.updateMember(id, patch, TEAM_DEMO_MEMBERS);
+              refreshWorkspaceSnapshot();
+            }}
+            onDeactivateMember={(id) => {
+              teamRepository.deactivateMember(id, TEAM_DEMO_MEMBERS);
+              refreshWorkspaceSnapshot();
+            }}
+            onReactivateMember={(id) => {
+              teamRepository.updateMember(id, { status: "active" }, TEAM_DEMO_MEMBERS);
+              refreshWorkspaceSnapshot();
+            }}
+            onDeleteMember={(id) => {
+              teamRepository.deleteMember(id, TEAM_DEMO_MEMBERS);
+              refreshWorkspaceSnapshot();
+            }}
+            onInvite={(data) => {
+              teamRepository.createInvite(
+                { ...data, boardIds: [], invitedBy: activeViewerContext.userId ?? "user-ana" },
+                TEAM_DEMO_INVITES,
+              );
+              refreshWorkspaceSnapshot();
+            }}
+            onCancelInvite={(id) => {
+              teamRepository.cancelInvite(id, TEAM_DEMO_INVITES);
+              refreshWorkspaceSnapshot();
+            }}
+            onResendInvite={(id) => {
+              teamRepository.resendInvite(id, TEAM_DEMO_INVITES);
+              refreshWorkspaceSnapshot();
+            }}
+          />
+        )}
+
+        {pageView === "settings" && (
+          <WorkspaceSettingsPage />
+        )}
+
+        {pageView === "clients" && (
+          <ClientsPage
+            clients={clientsList}
+            boards={visibleBoards}
+            members={teamRepository.listMembers(TEAM_DEMO_MEMBERS)}
+            users={BOARD_DIRECTORY_USERS as Array<{ id: string; name: string; image?: string; color?: string }>}
+            canEdit={activeRole === "manager"}
+            onCreateClient={(input) => {
+              clientsRepository.create(CLIENTS_DEMO_SEED, input);
+              refreshClients();
+            }}
+            onUpdateClient={(id, patch) => {
+              clientsRepository.update(id, patch, CLIENTS_DEMO_SEED);
+              refreshClients();
+            }}
+            onDeleteClient={(id) => {
+              clientsRepository.delete(id, CLIENTS_DEMO_SEED);
+              refreshClients();
+            }}
+            onInviteClient={() => {
+              window.location.hash = "/team";
+            }}
           />
         )}
 
@@ -3020,6 +3166,8 @@ export default function App() {
         onClose={() => setShowCreateModal(false)}
       />
     </div>
+    </WorkspaceProvider>
+    </WorkspaceSettingsProvider>
   );
 }
 

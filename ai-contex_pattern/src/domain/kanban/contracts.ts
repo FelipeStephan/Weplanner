@@ -45,6 +45,8 @@ export interface BoardRecord {
   updatedAt: string;
 }
 
+
+
 export interface BoardColumn {
   id: string;
   boardId: string;

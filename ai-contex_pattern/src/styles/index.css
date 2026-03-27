@@ -80,3 +80,47 @@
     linear-gradient(120deg, #9a3412 0%, #c2410c 28%, #ea580c 52%, #b45309 74%, #9a3412 100%);
   background-size: 180% 180%;
 }
+
+@keyframes marquee-horizontal {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+@keyframes marquee-horizontal-reverse {
+  0% { transform: translateX(-50%); }
+  100% { transform: translateX(0); }
+}
+
+.animate-marquee {
+  animation: marquee-horizontal 35s linear infinite;
+  will-change: transform;
+}
+
+.animate-marquee-reverse {
+  animation: marquee-horizontal-reverse 35s linear infinite;
+  will-change: transform;
+}
+
+.pause-on-hover:hover .animate-marquee,
+.pause-on-hover:hover .animate-marquee-reverse {
+  animation-play-state: paused;
+}
+
+/* Animated Dotted Background */
+.bg-dot-pattern {
+  background-color: #ffffff;
+  background-image: radial-gradient(#e5e5e5 1.5px, transparent 1.5px);
+  background-size: 32px 32px;
+  animation: slide-dots 15s linear infinite;
+  will-change: background-position;
+}
+
+.dark .bg-dot-pattern {
+  background-color: #0a0a0a;
+  background-image: radial-gradient(#262626 1.5px, transparent 1.5px);
+}
+
+@keyframes slide-dots {
+  0% { background-position: 0 0; }
+  100% { background-position: 32px 32px; }
+}

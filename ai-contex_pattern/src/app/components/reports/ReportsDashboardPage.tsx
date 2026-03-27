@@ -1621,16 +1621,7 @@ export function ReportsDashboardPage({
                 >
                   Exportar
                 </Button>
-                <Button className="rounded-2xl bg-[#ff5623] text-white hover:bg-[#c2410c]">
-                  Configurar
-                </Button>
                 <AvatarStack avatars={managerAvatars} max={5} size="md" />
-                <button
-                  onClick={onToggleDarkMode}
-                  className="flex h-11 w-11 items-center justify-center rounded-2xl border border-[#E5E7E4] bg-white text-[#525252] transition-colors hover:bg-[#F0F3F0] dark:border-[#2D2F30] dark:bg-[#171819] dark:text-[#F5F5F5]"
-                >
-                  {darkMode ? <Sun className="h-4 w-4 text-[#feba31]" /> : <Moon className="h-4 w-4" />}
-                </button>
               </div>
             </div>
           </div>

@@ -77,6 +77,13 @@ interface TaskDetailModalProps {
     credits?: number;
     client?: string;
     clientId?: string | null;
+    activityLog?: Array<{
+      id: string;
+      icon: 'move' | 'complete' | 'archive' | 'cancel' | 'send' | 'create' | 'edit';
+      actor: string;
+      action: string;
+      timestamp: string;
+    }>;
   };
 }
 
@@ -153,11 +160,46 @@ export function TaskDetailModal({
     type === 'doc' ? 'bg-[#dbeafe] text-[#2563eb]' :
     type === 'spreadsheet' ? 'bg-[#dcfce7] text-[#16a34a]' : 'bg-[#f5f5f5] text-[#525252]';
 
+  const activityIconMap: Record<string, typeof Edit3> = {
+    move: ArrowRight,
+    complete: CheckCheck,
+    archive: File,
+    cancel: X,
+    send: ArrowRight,
+    create: Edit3,
+    edit: Edit3,
+  };
+
+  const formatActivityTimestamp = (iso: string): string => {
+    try {
+      const date = new Date(iso);
+      return date.toLocaleString('pt-BR', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    } catch {
+      return iso;
+    }
+  };
+
   const activityItems = [
-    { id: 'a1', icon: Edit3, actor: 'Ana Silva', action: 'criou esta tarefa', timestamp: task.createdAt ? `${task.createdAt} às 09:00` : '01 Mar, 2026 às 09:00' },
-    { id: 'a2', icon: ArrowRight, actor: 'Carlos Lima', action: 'moveu o status de A fazer para Em progresso', timestamp: '05 Mar, 2026 às 10:30' },
-    { id: 'a3', icon: Paperclip, actor: 'Mariana Costa', action: 'anexou 2 arquivos', timestamp: '06 Mar, 2026 às 14:20' },
-    { id: 'a4', icon: MessageCircle, actor: 'Rafael Santos', action: 'comentou na tarefa', timestamp: '08 Mar, 2026 às 16:45' },
+    {
+      id: 'a0-create',
+      icon: Edit3,
+      actor: task.assignees[0]?.name || 'Sistema',
+      action: 'criou esta tarefa',
+      timestamp: task.createdAt ? `${task.createdAt} às 09:00` : '01 Mar, 2026 às 09:00',
+    },
+    ...(task.activityLog ?? []).map((entry) => ({
+      id: entry.id,
+      icon: activityIconMap[entry.icon] ?? ArrowRight,
+      actor: entry.actor,
+      action: entry.action,
+      timestamp: formatActivityTimestamp(entry.timestamp),
+    })),
   ];
 
   return (

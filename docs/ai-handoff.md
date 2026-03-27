@@ -55,6 +55,18 @@ If working on a specific area, also read:
   - `ai-contex_pattern/src/app/components/reports/ReportsDashboardPage.tsx`
 - Persistence:
   - `ai-contex_pattern/src/app/data/kanban-workspace-persistence.ts`
+- Team management:
+  - `ai-contex_pattern/src/app/components/team/TeamPage.tsx`
+  - `ai-contex_pattern/src/repositories/teamRepository.ts`
+- Workspace settings:
+  - `ai-contex_pattern/src/context/WorkspaceSettingsContext.tsx`
+  - `ai-contex_pattern/src/app/components/settings/WorkspaceSettingsPage.tsx`
+- Client management:
+  - `ai-contex_pattern/src/domain/clients/contracts.ts`
+  - `ai-contex_pattern/src/repositories/clientsRepository.ts`
+  - `ai-contex_pattern/src/demo/clientsDemoData.ts`
+  - `ai-contex_pattern/src/app/components/clients/ClientsPage.tsx`
+  - `ai-contex_pattern/src/app/components/clients/ClientPanel.tsx`
 
 ## Critical architecture rules
 
@@ -90,7 +102,7 @@ Each task has a `credits` value.
 
 Credits represent effort/workload, not just task count.
 
-Important rule:
+Important rules:
 
 - completed tasks consume client credits
 - archived tasks consume client credits
@@ -102,6 +114,14 @@ Conceptual formula:
 
 Rework does not automatically change credits.
 
+### Credits display — data-driven (sem toggle por board)
+
+- O badge e campo de créditos **só aparecem** quando `task.credits > 0`
+- Não existe mais `board.creditsEnabled` — esse campo foi removido
+- Existe apenas um **master switch global** em `WorkspaceSettings.creditsEnabled`
+- Quando o switch global está `false`, o campo some em todo o workspace, mas os valores são preservados
+- Leia `docs/credits-system-architecture.md` antes de implementar qualquer lógica de créditos
+
 ## Board rules
 
 - columns have custom names
@@ -110,6 +130,43 @@ Rework does not automatically change credits.
 - column ordering is stored through `order`
 - cards and columns support drag-and-drop
 - archived/cancelled tasks live in board-level history, not active columns
+- **boards do NOT have a `creditsEnabled` flag** — esse campo foi removido
+
+## Team rules
+
+- apenas gestores (`role === 'manager'`) podem convidar, editar, desativar e excluir membros
+- o fluxo de convite **não inclui seleção de boards** — é configurado manualmente após o cadastro
+- membros podem ser desativados (soft) ou excluídos permanentemente (hard)
+- um gestor não pode excluir seu próprio perfil
+- leia `docs/team-management.md` para o modelo completo
+
+## Workspace Settings
+
+- rota `/settings` — visível apenas para managers
+- configurações: identidade (nome, logo, cor), operacional (créditos, dias úteis), acesso (convites, biblioteca)
+- a cor de destaque (`accentColor`) é aplicada via CSS custom property `--accent-color`
+- leia `docs/workspace-settings.md` para o modelo completo
+
+## Client Management
+
+- rota `/clients` — visível para managers ou usuários com `canEditClients = true`
+- sidebar item: "Clientes" com ícone `Building2`
+- cada cliente tem: nome, setor, logo URL, responsável (gestor), status, créditos
+- creditsEnabled por cliente: quando `false`, o cliente some das views de crédito
+- boardIds: soft link neutro — sem regra estrutural
+- libraryResources: 4 slots criados automaticamente ao cadastrar (drive, brand, social, links)
+- membros com `role = 'client'` podem ser vinculados via `member.clientId === client.id`
+- persistência em localStorage: chave `weplanner:clients:v1`
+- seed demo: 5 clientes em `src/demo/clientsDemoData.ts`
+- leia `docs/client-management.md` para o modelo completo
+
+### `canEditClients` permission
+
+- nova permissão adicionada em `MemberPermissions`
+- permite que colaboradores acessem e editem a página de clientes
+- configurável por membro no `TeamMemberPanel` → aba Permissões
+- managers sempre têm essa permissão implicitamente
+- clientes (`role = 'client'`) nunca recebem essa permissão
 
 ## Analytics rules
 

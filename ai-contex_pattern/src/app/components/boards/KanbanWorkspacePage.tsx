@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import {
   Archive,
   ArrowDownWideNarrow,
+  ArrowRightLeft,
   Calendar,
   CheckSquare,
   ChevronLeft,
@@ -44,6 +45,7 @@ import {
 } from '../tasks/CreateTaskModal';
 import { DetailedTaskCard } from '../tasks/DetailedTaskCard';
 import { KanbanColumn } from '../tasks/KanbanColumn';
+import { SendToBoardModal } from '../tasks/SendToBoardModal';
 import { TaskCard } from '../tasks/TaskCard';
 import { TaskDetailModal } from '../tasks/TaskDetailModal';
 import { ClientLibraryModal } from '../shared/ClientLibraryModal';
@@ -154,6 +156,13 @@ interface BoardCard {
   totalTimeInApproval?: number;
   reviewCycles?: number;
   adjustmentCycles?: number;
+  activityLog?: Array<{
+    id: string;
+    icon: 'move' | 'complete' | 'archive' | 'cancel' | 'send' | 'create' | 'edit';
+    actor: string;
+    action: string;
+    timestamp: string;
+  }>;
 }
 
 interface TaskStatusHistoryRecord {
@@ -210,6 +219,11 @@ interface BoardRecord {
   };
   createdAt: string;
   updatedAt: string;
+  /**
+   * Créditos habilitados neste board. undefined = herda global (true).
+   * Quando false, o campo credits é ocultado nos cards mas NÃO é apagado da tarefa.
+   */
+  creditsEnabled?: boolean;
 }
 
 type ColumnFilterOption = 'manual' | 'delivery-date' | 'recent' | 'oldest';
@@ -1084,6 +1098,10 @@ export function KanbanWorkspacePage({
     hydratedTasks.map((card) => card.id),
   );
   const [movingCardIds, setMovingCardIds] = useState<string[]>([]);
+  const [sendToBoardModal, setSendToBoardModal] = useState<{
+    open: boolean;
+    card: BoardCard | null;
+  }>({ open: false, card: null });
   const boardScrollRef = useRef<HTMLDivElement | null>(null);
   const organizeMenuRef = useRef<HTMLDivElement | null>(null);
   const boardMembersRef = useRef<HTMLDivElement | null>(null);
@@ -1760,25 +1778,51 @@ export function KanbanWorkspacePage({
   };
 
   const cancelCard = (cardId: string) => {
+    const now = new Date().toISOString();
     applyCardsUpdate(
       (current) =>
-        current.map((card) =>
-          card.id === cardId
-            ? { ...card, resolution: 'cancelled' }
-            : card,
-        ),
+        current.map((card) => {
+          if (card.id !== cardId) return card;
+          return {
+            ...card,
+            resolution: 'cancelled',
+            activityLog: [
+              ...(card.activityLog ?? []),
+              {
+                id: `activity-${now}-cancel`,
+                icon: 'cancel' as const,
+                actor: ACTIVE_WORKFLOW_ACTOR,
+                action: 'cancelou esta tarefa',
+                timestamp: now,
+              },
+            ],
+          };
+        }),
       'programmatic',
     );
   };
 
   const archiveCard = (cardId: string) => {
+    const now = new Date().toISOString();
     applyCardsUpdate(
       (current) =>
-        current.map((card) =>
-          card.id === cardId
-            ? { ...card, resolution: 'archived' }
-            : card,
-        ),
+        current.map((card) => {
+          if (card.id !== cardId) return card;
+          return {
+            ...card,
+            resolution: 'archived',
+            activityLog: [
+              ...(card.activityLog ?? []),
+              {
+                id: `activity-${now}-archive`,
+                icon: 'archive' as const,
+                actor: ACTIVE_WORKFLOW_ACTOR,
+                action: 'arquivou esta tarefa',
+                timestamp: now,
+              },
+            ],
+          };
+        }),
       'programmatic',
     );
   };
@@ -1842,11 +1886,50 @@ export function KanbanWorkspacePage({
   };
 
   const copyCardLink = async (cardId: string) => {
-    const link = `${window.location.origin}${window.location.pathname}#/kanban-workspace?card=${cardId}`;
+    const card = cards.find((c) => c.id === cardId);
+    const boardId = card?.boardId ?? activeBoardId;
+    const params = new URLSearchParams({ board: boardId, card: cardId });
+    const link = `${window.location.origin}${window.location.pathname}#/kanban-workspace?${params.toString()}`;
 
     if (navigator.clipboard?.writeText) {
       await navigator.clipboard.writeText(link);
     }
+  };
+
+  const sendCardToBoard = (cardId: string, targetBoardId: string, targetColumnId: string) => {
+    const now = new Date().toISOString();
+    const targetBoard = boards.find((b) => b.id === targetBoardId);
+    const targetColumn = boardColumns.find((col) => col.id === targetColumnId);
+    const targetBoardName = targetBoard?.name ?? 'outro board';
+    const targetColumnName = targetColumn?.name ?? 'coluna desconhecida';
+    applyCardsUpdate(
+      (current) =>
+        current.map((card) => {
+          if (card.id !== cardId) return card;
+          return {
+            ...card,
+            boardId: targetBoardId,
+            columnId: targetColumnId,
+            previousColumnId: card.columnId,
+            previousStatus: card.status,
+            statusChangedAt: now,
+            updatedAt: now,
+            activityLog: [
+              ...(card.activityLog ?? []),
+              {
+                id: `activity-${now}-send`,
+                icon: 'send' as const,
+                actor: ACTIVE_WORKFLOW_ACTOR,
+                action: `enviou esta tarefa para o board "${targetBoardName}", coluna "${targetColumnName}"`,
+                timestamp: now,
+              },
+            ],
+          };
+        }),
+      'programmatic',
+    );
+    setCardsCompactState([cardId]);
+    setSendToBoardModal({ open: false, card: null });
   };
 
   const setCardsCompactState = (
@@ -2015,6 +2098,18 @@ export function KanbanWorkspacePage({
 
     const destinationList = [...(columnsMap[destinationColumnId] || [])];
     const destinationColumn = getColumnById(currentBoardColumns, destinationColumnId);
+    const sourceColumn = getColumnById(currentBoardColumns, movingCard.columnId);
+    const columnChanged = movingCard.columnId !== destinationColumnId;
+    const now = new Date().toISOString();
+    const dragActivityEntry = columnChanged
+      ? {
+          id: `activity-${now}-move`,
+          icon: 'move' as const,
+          actor: ACTIVE_WORKFLOW_ACTOR,
+          action: `moveu de "${sourceColumn?.name ?? movingCard.columnId}" para "${destinationColumn?.name ?? destinationColumnId}"`,
+          timestamp: now,
+        }
+      : null;
     const nextCard = normalizeCardForBoardState({
       ...movingCard,
       columnId: destinationColumnId,
@@ -2022,7 +2117,10 @@ export function KanbanWorkspacePage({
       previousStatus: destinationColumn
         ? getTaskStatusForColumn(destinationColumn)
         : movingCard.status,
-    }, boardColumns, movingCard, new Date().toISOString());
+      activityLog: dragActivityEntry
+        ? [...(movingCard.activityLog ?? []), dragActivityEntry]
+        : (movingCard.activityLog ?? []),
+    }, boardColumns, movingCard, now);
 
     if (!targetCardId) {
       destinationList.push(nextCard);
@@ -2187,11 +2285,22 @@ export function KanbanWorkspacePage({
             return card;
           }
 
+          const now = new Date().toISOString();
           return {
             ...card,
             columnId: completedColumnId,
             progress: 100,
             resolution: 'completed',
+            activityLog: [
+              ...(card.activityLog ?? []),
+              {
+                id: `activity-${now}-complete`,
+                icon: 'complete' as const,
+                actor: ACTIVE_WORKFLOW_ACTOR,
+                action: 'marcou esta tarefa como concluída',
+                timestamp: now,
+              },
+            ],
           };
           }),
         'programmatic',
@@ -2272,6 +2381,7 @@ export function KanbanWorkspacePage({
         client: selectedCard.client?.name,
         clientId: selectedCard.clientId,
         createdAt: formatTaskCreatedAt(selectedCard.createdAt),
+        activityLog: selectedCard.activityLog ?? [],
       }
     : null;
 
@@ -2396,6 +2506,16 @@ export function KanbanWorkspacePage({
             >
               <Link2 className="h-4 w-4" />
               Copiar link
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onSelect={(event) => {
+                event.preventDefault();
+                setSendToBoardModal({ open: true, card });
+              }}
+              className="rounded-xl px-3 py-2.5"
+            >
+              <ArrowRightLeft className="h-4 w-4" />
+              Enviar para outro board
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
@@ -3714,6 +3834,20 @@ export function KanbanWorkspacePage({
         isOpen={!!selectedClientLibraryId}
         clientId={selectedClientLibraryId}
         onClose={() => setSelectedClientLibraryId(null)}
+      />
+
+      <SendToBoardModal
+        open={sendToBoardModal.open}
+        onClose={() => setSendToBoardModal({ open: false, card: null })}
+        taskTitle={sendToBoardModal.card?.title}
+        boards={boards}
+        boardColumns={boardColumns}
+        currentBoardId={sendToBoardModal.card?.boardId ?? activeBoardId}
+        onConfirm={(targetBoardId, targetColumnId) => {
+          if (sendToBoardModal.card) {
+            sendCardToBoard(sendToBoardModal.card.id, targetBoardId, targetColumnId);
+          }
+        }}
       />
     </section>
   );

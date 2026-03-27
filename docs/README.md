@@ -15,6 +15,7 @@ Its purpose is to help:
 - `workflow-system.md` - semantic workflow model and status derivation rules
 - `task-system.md` - task creation, task lifecycle, subtasks, due dates, and modal behavior
 - `credits-system.md` - credits model and client credit consumption rules
+- `credits-system-architecture.md` - implementação detalhada do sistema de créditos (data-driven, sem toggle por board)
 - `board-architecture.md` - board, column, ordering, drag-and-drop, and board-level history
 - `analytics-system.md` - workflow tracking, reports, simulation mode, and analytics metrics
 - `data-model.md` - persisted entities, UI-level entities, and data relationships
@@ -26,6 +27,9 @@ Its purpose is to help:
 - `history-system.md` - board-level history behavior for archived and cancelled tasks
 - `ui-behaviors.md` - UI behaviors that directly affect system data and workflow logic
 - `overview-dashboard.md` - overview/dashboard surfaces and navigation structure
+- `team-management.md` - member lifecycle, invite flow, roles, deletion, permissions, and DB schema
+- `workspace-settings.md` - workspace identity, operational config, access policies, accent color, and DB schema
+- `client-management.md` - client lifecycle, library resources, board links, credit control per client, and DB schema
 - `weplanner-architecture.md` - consolidated high-level architecture summary
 
 ## Required rule for future AI agents
@@ -41,8 +45,11 @@ Minimum recommended reading path:
 Examples:
 
 - board changes -> `board-architecture.md`, `workflow-system.md`, `history-system.md`
-- task changes -> `task-system.md`, `credits-system.md`, `product-rules.md`
+- task changes -> `task-system.md`, `credits-system.md`, `credits-system-architecture.md`, `product-rules.md`
 - reports changes -> `analytics-system.md`, `analytics-metrics-catalog.md`
+- team changes -> `team-management.md`, `authorization-model.md`
+- settings changes -> `workspace-settings.md`, `credits-system-architecture.md`
+- client changes -> `client-management.md`, `credits-system-architecture.md`, `team-management.md`
 - backend planning -> `backend-transition-plan.md`, `database-entity-map.md`, `authorization-model.md`
 
 ## Documentation maintenance rule

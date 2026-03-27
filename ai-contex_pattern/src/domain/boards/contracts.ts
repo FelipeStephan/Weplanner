@@ -24,3 +24,4 @@ export interface BoardUpdateInput {
   description?: string;
   memberUserIds?: string[];
 }
+
