@@ -3,6 +3,8 @@ import {
   Archive,
   ArrowDownWideNarrow,
   ArrowRightLeft,
+  Bell,
+  Building2,
   Calendar,
   CheckSquare,
   ChevronLeft,
@@ -35,7 +37,10 @@ import {
 import { BOARD_DIRECTORY_USERS } from '../../../demo/boardDirectory';
 import { boardsRepository } from '../../../repositories/boardsRepository';
 import { AvatarStack } from '../shared/AvatarStack';
+import type { NotificationItem } from '../shared/NotificationCard';
+import { BoardNotificationsPopover } from './BoardNotificationsPopover';
 import { CreateBoardModal } from './CreateBoardModal';
+import { BoardCalendarView } from './BoardCalendarView';
 import {
   CreateTaskModal,
   type CreateTaskInitialData,
@@ -46,6 +51,7 @@ import {
 import { DetailedTaskCard } from '../tasks/DetailedTaskCard';
 import { KanbanColumn } from '../tasks/KanbanColumn';
 import { SendToBoardModal } from '../tasks/SendToBoardModal';
+import { StatusBadge } from '../tasks/StatusBadge';
 import { TaskCard } from '../tasks/TaskCard';
 import { TaskDetailModal } from '../tasks/TaskDetailModal';
 import { ClientLibraryModal } from '../shared/ClientLibraryModal';
@@ -72,6 +78,7 @@ import {
 } from '../ui/dropdown-menu';
 import { Input } from '../ui/input';
 import { cn } from '../ui/utils';
+import { getRichTextPlainText } from '../../utils/richText';
 import { formatTaskDueDate, parseTaskDueDate } from '../../utils/taskDueDate';
 import {
   applyAnalyticsToTasks,
@@ -113,6 +120,9 @@ interface KanbanWorkspacePageProps {
   canManageBoards?: boolean;
   darkMode?: boolean;
   onToggleDarkMode?: () => void;
+  notifications?: NotificationItem[];
+  onOpenNotification?: (notification: NotificationItem) => void;
+  onMarkBoardNotificationsRead?: (boardId: string) => void;
 }
 
 interface BoardCard {
@@ -228,6 +238,7 @@ interface BoardRecord {
 
 type ColumnFilterOption = 'manual' | 'delivery-date' | 'recent' | 'oldest';
 type BoardScope = 'all' | 'mine' | 'user';
+type BoardViewMode = 'kanban' | 'calendar';
 type ColumnEditorMode = 'create' | 'edit';
 type HistoryFilterOption = 'all' | 'archived' | 'cancelled';
 const BOARD_ID = 'board-my-workspace';
@@ -690,6 +701,14 @@ const MONTH_MAP: Record<string, number> = {
 
 const parseBoardDate = (value: string) => parseTaskDueDate(value).date ?? new Date(2026, 0, 1);
 
+const withAlpha = (hexColor: string, alpha: string) => {
+  if (!/^#[\da-fA-F]{6}$/.test(hexColor)) {
+    return undefined;
+  }
+
+  return `${hexColor}${alpha}`;
+};
+
 const getRouteCardId = () => {
   if (typeof window === 'undefined') {
     return null;
@@ -1011,6 +1030,9 @@ export function KanbanWorkspacePage({
   canManageBoards = false,
   darkMode = false,
   onToggleDarkMode,
+  notifications = [],
+  onOpenNotification,
+  onMarkBoardNotificationsRead,
 }: KanbanWorkspacePageProps) {
   const activeBoardId = boardId || DEFAULT_BOARD_ID;
   const initialWorkspaceRef = useRef<PersistedKanbanWorkspaceSnapshot | null>(null);
@@ -1048,6 +1070,7 @@ export function KanbanWorkspacePage({
   );
   const [boardColumns, setBoardColumns] = useState<BoardColumn[]>(hydratedColumns);
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchPanelOpen, setSearchPanelOpen] = useState(false);
   const [boardScope, setBoardScope] = useState<BoardScope>('all');
   const [selectedUser, setSelectedUser] = useState<string>('Ana Silva');
   const [organizeMenuOpen, setOrganizeMenuOpen] = useState(false);
@@ -1060,10 +1083,21 @@ export function KanbanWorkspacePage({
   const [historyDeleteCandidate, setHistoryDeleteCandidate] = useState<BoardCard | null>(null);
   const [createTaskStartColumnId, setCreateTaskStartColumnId] = useState<BoardColumnId | null>(null);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [createTaskPrefill, setCreateTaskPrefill] = useState<CreateTaskInitialData | null>(null);
+  const [boardViewMode, setBoardViewMode] = useState<BoardViewMode>('kanban');
+  const [calendarMonth, setCalendarMonth] = useState(() => {
+    const today = new Date();
+    return new Date(today.getFullYear(), today.getMonth(), 1);
+  });
+  const [selectedCalendarDate, setSelectedCalendarDate] = useState<Date | null>(() => {
+    const today = new Date();
+    return new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  });
   const [editBoardModalOpen, setEditBoardModalOpen] = useState(false);
   const [deleteBoardDialogOpen, setDeleteBoardDialogOpen] = useState(false);
   const [boardMembersOpen, setBoardMembersOpen] = useState(false);
   const [boardSettingsOpen, setBoardSettingsOpen] = useState(false);
+  const [boardNotificationsOpen, setBoardNotificationsOpen] = useState(false);
   const [boardMemberSearch, setBoardMemberSearch] = useState('');
   const [automationColumn, setAutomationColumn] = useState<BoardColumn | null>(null);
   const [columnEditorMode, setColumnEditorMode] = useState<ColumnEditorMode | null>(null);
@@ -1103,9 +1137,11 @@ export function KanbanWorkspacePage({
     card: BoardCard | null;
   }>({ open: false, card: null });
   const boardScrollRef = useRef<HTMLDivElement | null>(null);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
   const organizeMenuRef = useRef<HTMLDivElement | null>(null);
   const boardMembersRef = useRef<HTMLDivElement | null>(null);
   const boardSettingsRef = useRef<HTMLDivElement | null>(null);
+  const boardNotificationsRef = useRef<HTMLDivElement | null>(null);
   const panStateRef = useRef({
     isPanning: false,
     startX: 0,
@@ -1122,6 +1158,14 @@ export function KanbanWorkspacePage({
   const currentBoard = useMemo(
     () => boards.find((board) => board.id === activeBoardId) ?? boards[0] ?? null,
     [activeBoardId, boards],
+  );
+  const currentBoardNotifications = useMemo(
+    () => notifications.filter((notification) => notification.boardId === activeBoardId),
+    [activeBoardId, notifications],
+  );
+  const currentBoardUnreadNotificationCount = useMemo(
+    () => currentBoardNotifications.filter((notification) => !notification.isRead).length,
+    [currentBoardNotifications],
   );
   const currentBoardColumns = useMemo(
     () =>
@@ -1174,9 +1218,13 @@ export function KanbanWorkspacePage({
     setColumnFormError(null);
   };
 
-  const openCreateTaskModal = (columnId?: BoardColumnId) => {
+  const openCreateTaskModal = (
+    columnId?: BoardColumnId,
+    prefill?: CreateTaskInitialData | null,
+  ) => {
     setEditingTaskId(null);
     setCreateTaskStartColumnId(columnId ?? null);
+    setCreateTaskPrefill(prefill ?? null);
     setCreateTaskModalOpen(true);
   };
 
@@ -1184,6 +1232,7 @@ export function KanbanWorkspacePage({
     setSelectedCard(null);
     setEditingTaskId(card.id);
     setCreateTaskStartColumnId(card.columnId);
+    setCreateTaskPrefill(null);
     setCreateTaskModalOpen(true);
   };
 
@@ -1370,6 +1419,37 @@ export function KanbanWorkspacePage({
   };
 
   useEffect(() => {
+    if (!searchPanelOpen) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      searchInputRef.current?.focus();
+      searchInputRef.current?.select();
+    }, 20);
+
+    return () => window.clearTimeout(timer);
+  }, [searchPanelOpen]);
+
+  useEffect(() => {
+    if (!searchPanelOpen) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') {
+        return;
+      }
+
+      setSearchPanelOpen(false);
+      setSearchQuery('');
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [searchPanelOpen]);
+
+  useEffect(() => {
     if (!organizeMenuOpen) {
       return;
     }
@@ -1420,38 +1500,84 @@ export function KanbanWorkspacePage({
     return () => document.removeEventListener('mousedown', handlePointerDown);
   }, [boardSettingsOpen]);
 
+  useEffect(() => {
+    if (!boardNotificationsOpen) {
+      return;
+    }
+
+    const handlePointerDown = (event: MouseEvent | globalThis.MouseEvent) => {
+      const target = event.target as Node | null;
+      if (!target || boardNotificationsRef.current?.contains(target)) {
+        return;
+      }
+      setBoardNotificationsOpen(false);
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    return () => document.removeEventListener('mousedown', handlePointerDown);
+  }, [boardNotificationsOpen]);
+
   const visibleColumns = currentBoardColumns.filter(
     (column) => !hiddenColumns.includes(column.id),
   );
 
-  const cardsByColumn = useMemo(() => {
-    const normalizedQuery = searchQuery.trim().toLowerCase();
+  const filteredBoardCards = useMemo(() => {
+    let boardCards = cards.filter(
+      (card) => card.boardId === activeBoardId && isBoardTaskVisible(card),
+    );
 
-    return visibleColumns.reduce<Record<BoardColumnId, BoardCard[]>>((acc, column) => {
-      let columnCards = cards.filter(
-        (card) => card.columnId === column.id && isBoardTaskVisible(card),
+    if (boardScope === 'mine') {
+      boardCards = boardCards.filter((card) =>
+        card.assignees.some((assignee) => assignee.name === 'Ana Silva'),
       );
+    }
 
-      if (boardScope === 'mine') {
-        columnCards = columnCards.filter((card) =>
-          card.assignees.some((assignee) => assignee.name === 'Ana Silva'),
-        );
-      }
+    if (boardScope === 'user') {
+      boardCards = boardCards.filter((card) =>
+        card.assignees.some((assignee) => assignee.name === selectedUser),
+      );
+    }
 
-      if (boardScope === 'user') {
-        columnCards = columnCards.filter((card) =>
-          card.assignees.some((assignee) => assignee.name === selectedUser),
-        );
-      }
+    return boardCards;
+  }, [activeBoardId, boardScope, cards, selectedUser]);
 
-      if (normalizedQuery) {
-        columnCards = columnCards.filter(
-          (card) =>
-            card.title.toLowerCase().includes(normalizedQuery) ||
-            card.description.toLowerCase().includes(normalizedQuery) ||
-            card.tags.some((tag) => tag.toLowerCase().includes(normalizedQuery)),
+  const boardSearchResults = useMemo(() => {
+    const normalizedQuery = searchQuery.trim().toLowerCase();
+    if (!normalizedQuery) {
+      return [];
+    }
+
+    return filteredBoardCards
+      .filter((card) => {
+        const searchableFields = [
+          card.title,
+          card.description,
+          ...(card.tags ?? []),
+          card.client?.name ?? '',
+          ...card.assignees.map((assignee) => assignee.name),
+        ];
+
+        return searchableFields.some((field) =>
+          field.toLowerCase().includes(normalizedQuery),
         );
-      }
+      })
+      .sort((left, right) => {
+        const leftIndex = left.title.toLowerCase().indexOf(normalizedQuery);
+        const rightIndex = right.title.toLowerCase().indexOf(normalizedQuery);
+        const safeLeftIndex = leftIndex === -1 ? Number.MAX_SAFE_INTEGER : leftIndex;
+        const safeRightIndex = rightIndex === -1 ? Number.MAX_SAFE_INTEGER : rightIndex;
+
+        if (safeLeftIndex !== safeRightIndex) {
+          return safeLeftIndex - safeRightIndex;
+        }
+
+        return left.title.localeCompare(right.title);
+      });
+  }, [filteredBoardCards, searchQuery]);
+
+  const cardsByColumn = useMemo(() => {
+    return visibleColumns.reduce<Record<BoardColumnId, BoardCard[]>>((acc, column) => {
+      let columnCards = filteredBoardCards.filter((card) => card.columnId === column.id);
 
       const filterOption = columnFilters[column.id];
       if (filterOption === 'manual') {
@@ -1478,7 +1604,32 @@ export function KanbanWorkspacePage({
       acc[column.id] = columnCards;
       return acc;
     }, {} as Record<BoardColumnId, BoardCard[]>);
-  }, [boardScope, cards, columnFilters, searchQuery, selectedUser, visibleColumns]);
+  }, [columnFilters, filteredBoardCards, visibleColumns]);
+
+  const calendarTasks = useMemo(
+    () =>
+      filteredBoardCards
+        .filter((card) => parseTaskDueDate(card.dueDate).date)
+        .map((card) => {
+          const column = getColumnById(currentBoardColumns, card.columnId);
+          return {
+            id: card.id,
+            title: card.title,
+            dueDate: card.dueDate,
+            priority: card.priority,
+            status: card.status,
+            columnName: column?.name || 'Sem coluna',
+            columnAccentColor: column?.accentColor || '#ff5623',
+            assignees: card.assignees,
+            clientName: card.client?.name || null,
+          };
+        })
+        .sort(
+          (left, right) =>
+            parseBoardDate(left.dueDate).getTime() - parseBoardDate(right.dueDate).getTime(),
+        ),
+    [currentBoardColumns, filteredBoardCards],
+  );
 
   const draggedCard = cards.find((card) => card.id === dragPreview?.cardId);
   const boardHistoryCards = useMemo(
@@ -1541,10 +1692,46 @@ export function KanbanWorkspacePage({
   );
   const organizeLabel =
     boardScope === 'mine'
-      ? 'Minhas tarefas'
+      ? 'Minhas'
       : boardScope === 'user'
-        ? selectedUser
-        : 'Todas as tarefas';
+        ? selectedUser.split(' ')[0] || 'Usuario'
+        : 'Todas';
+  const formatDateForTaskPrefill = (value: Date) =>
+    `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(
+      value.getDate(),
+    ).padStart(2, '0')}`;
+  const handleCalendarMonthChange = (nextMonth: Date) => {
+    setCalendarMonth(nextMonth);
+    setSelectedCalendarDate((current) => {
+      if (!current) {
+        return null;
+      }
+
+      if (
+        current.getFullYear() === nextMonth.getFullYear() &&
+        current.getMonth() === nextMonth.getMonth()
+      ) {
+        return current;
+      }
+
+      const safeDay = Math.min(
+        current.getDate(),
+        new Date(nextMonth.getFullYear(), nextMonth.getMonth() + 1, 0).getDate(),
+      );
+
+      return new Date(nextMonth.getFullYear(), nextMonth.getMonth(), safeDay);
+    });
+  };
+
+  const handleCreateTaskFromCalendarDate = (date: Date) => {
+    const selectedDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    setSelectedCalendarDate(selectedDay);
+    setCalendarMonth(new Date(selectedDay.getFullYear(), selectedDay.getMonth(), 1));
+    openCreateTaskModal(undefined, {
+      boardId: activeBoardId,
+      dueDate: formatDateForTaskPrefill(selectedDay),
+    });
+  };
 
   const toggleColumnVisibility = (columnId: BoardColumnId) => {
     setHiddenColumns((current) =>
@@ -1635,6 +1822,7 @@ export function KanbanWorkspacePage({
     setCreateTaskModalOpen(false);
     setCreateTaskStartColumnId(null);
     setEditingTaskId(null);
+    setCreateTaskPrefill(null);
   };
 
   const updateBoardMetadata = (payload: BoardUpdateInput) => {
@@ -2432,6 +2620,7 @@ export function KanbanWorkspacePage({
         attachments: editingTask.attachmentsList ?? [],
       }
     : null;
+  const createTaskInitialData = editingTaskInitialData ?? createTaskPrefill;
 
   const renderCard = (card: BoardCard) => {
     const isCompleting = completingCardIds.includes(card.id);
@@ -2659,7 +2848,7 @@ export function KanbanWorkspacePage({
                       align="end"
                       className="w-[220px] rounded-2xl border-[#E5E7E4] bg-white p-2 dark:border-[#2D2F30] dark:bg-[#171819]"
                     >
-                      <DropdownMenuLabel>ConfiguraÃ§Ãµes do board</DropdownMenuLabel>
+                      <DropdownMenuLabel>Configurações do board</DropdownMenuLabel>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={() => setEditBoardModalOpen(true)}>
                         <Pencil className="mr-2 h-4 w-4" />
@@ -2857,24 +3046,35 @@ export function KanbanWorkspacePage({
               </div>
 
               <div className="flex flex-wrap items-center gap-3">
-                <div className="relative min-w-[280px] flex-1 xl:w-[360px] xl:flex-none">
-                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#A3A3A3]" />
-                  <Input
-                    value={searchQuery}
-                    onChange={(event) => setSearchQuery(event.target.value)}
-                    placeholder="Buscar cards"
-                    className="h-11 rounded-2xl border-[#E5E7E4] bg-white pl-10 dark:border-[#2D2F30] dark:bg-[#171819]"
-                  />
-                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  data-no-pan="true"
+                  className={cn(
+                    'h-11 w-11 rounded-2xl border-[#E5E7E4] bg-white p-0 text-[#171717] hover:bg-[#F6F8F6] dark:border-[#2D2F30] dark:bg-[#171819] dark:text-white dark:hover:bg-[#1E2021]',
+                    (searchPanelOpen || searchQuery) &&
+                      'border-[#ff5623]/40 bg-[#FFF4EE] text-[#c2410c] dark:border-[#ff8c69]/35 dark:bg-[#26150f] dark:text-[#ffb39c]',
+                  )}
+                  onClick={() => {
+                    if (searchPanelOpen) {
+                      setSearchPanelOpen(false);
+                      setSearchQuery('');
+                      return;
+                    }
+                    setSearchPanelOpen(true);
+                  }}
+                >
+                  <Search className="h-4 w-4" />
+                </Button>
                 <div ref={organizeMenuRef} className="relative" data-no-pan="true">
                   <button
                     type="button"
                     onClick={() => setOrganizeMenuOpen((current) => !current)}
-                    className="flex h-11 items-center gap-2 rounded-2xl border border-[#E5E7E4] bg-white px-4 text-sm font-medium text-[#171717] transition-colors hover:bg-[#F6F8F6] dark:border-[#2D2F30] dark:bg-[#171819] dark:text-[#F5F5F5] dark:hover:bg-[#1e2021]"
+                    className="flex h-10 items-center gap-2 rounded-2xl border border-[#E5E7E4] bg-white px-3.5 text-sm font-medium text-[#171717] transition-colors hover:bg-[#F6F8F6] dark:border-[#2D2F30] dark:bg-[#171819] dark:text-[#F5F5F5] dark:hover:bg-[#1E2021]"
                   >
-                    <ArrowDownWideNarrow className="h-4 w-4" />
+                    <ArrowDownWideNarrow className="h-3.5 w-3.5" />
                     <span>Organizar por: {organizeLabel}</span>
-                    <ChevronsUpDown className="h-4 w-4 opacity-60" />
+                    <ChevronsUpDown className="h-3.5 w-3.5 opacity-60" />
                   </button>
 
                   {organizeMenuOpen && (
@@ -2945,6 +3145,37 @@ export function KanbanWorkspacePage({
                     </div>
                   )}
                 </div>
+                <div
+                  className="inline-flex items-center gap-1 rounded-2xl border border-[#E5E7E4] bg-white/90 p-1 dark:border-[#2D2F30] dark:bg-[#171819]"
+                  data-no-pan="true"
+                >
+                  <button
+                    type="button"
+                    onClick={() => setBoardViewMode('kanban')}
+                    className={cn(
+                      'inline-flex h-9 items-center gap-2 rounded-xl transition-all',
+                      boardViewMode === 'kanban'
+                        ? 'bg-[#FFF4EE] px-3 text-sm font-medium text-[#c2410c] shadow-[0_12px_24px_-18px_rgba(255,86,35,0.65)] dark:bg-[#26150f] dark:text-[#ffb39c]'
+                        : 'w-9 justify-center text-[#737373] hover:bg-[#F6F8F6] dark:text-[#A3A3A3] dark:hover:bg-[#1A1B1C]',
+                    )}
+                  >
+                    <FolderKanban className="h-4 w-4" />
+                    {boardViewMode === 'kanban' ? <span>Kanban</span> : null}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBoardViewMode('calendar')}
+                    className={cn(
+                      'inline-flex h-9 items-center gap-2 rounded-xl transition-all',
+                      boardViewMode === 'calendar'
+                        ? 'bg-[#FFF4EE] px-3 text-sm font-medium text-[#c2410c] shadow-[0_12px_24px_-18px_rgba(255,86,35,0.65)] dark:bg-[#26150f] dark:text-[#ffb39c]'
+                        : 'w-9 justify-center text-[#737373] hover:bg-[#F6F8F6] dark:text-[#A3A3A3] dark:hover:bg-[#1A1B1C]',
+                    )}
+                  >
+                    <Calendar className="h-4 w-4" />
+                    {boardViewMode === 'calendar' ? <span>Calendário</span> : null}
+                  </button>
+                </div>
                 <Button
                   className="rounded-2xl bg-[#ff5623] text-white hover:bg-[#c2410c]"
                   onClick={() => openCreateTaskModal()}
@@ -2959,79 +3190,121 @@ export function KanbanWorkspacePage({
                   <Plus className="h-4 w-4" />
                   Criar coluna
                 </Button>
-                <Button
-                  variant="outline"
-                  className="rounded-2xl border-[#E5E7E4] bg-white text-[#171717] hover:bg-[#F6F8F6] dark:border-[#2D2F30] dark:bg-[#171819] dark:text-white dark:hover:bg-[#1E2021]"
-                  onClick={() => setHistoryModalOpen(true)}
-                >
-                  <History className="h-4 w-4" />
-                  Histórico
-                </Button>
-                {canManageBoards && (
-                  <div ref={boardSettingsRef} className="relative" data-no-pan="true">
-                    <Button
-                      variant="outline"
-                      className="rounded-2xl border-[#E5E7E4] bg-white text-[#171717] hover:bg-[#F6F8F6] dark:border-[#2D2F30] dark:bg-[#171819] dark:text-white dark:hover:bg-[#1E2021]"
-                      onClick={() => setBoardSettingsOpen((current) => !current)}
-                    >
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
-
-                    {boardSettingsOpen && (
-                      <div className="absolute right-0 top-[calc(100%+10px)] z-[95] w-[220px] rounded-2xl border border-[#E5E7E4] bg-white p-2 shadow-[0_24px_48px_-24px_rgba(15,23,42,0.35)] dark:border-[#2D2F30] dark:bg-[#171819]">
-                        <div className="px-3 py-2 text-sm font-semibold text-[#171717] dark:text-white">
-                          Configuracoes do board
-                        </div>
-                        <div className="my-1 h-px bg-[#F1F3F1] dark:bg-[#232425]" />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setEditBoardModalOpen(true);
-                            setBoardSettingsOpen(false);
-                          }}
-                          className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm text-[#525252] transition-colors hover:bg-[#F6F8F6] dark:text-[#D4D4D4] dark:hover:bg-[#1A1B1C]"
-                        >
-                          <Pencil className="h-4 w-4" />
-                          Editar board
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setBoardMembersOpen(true);
-                            setBoardSettingsOpen(false);
-                          }}
-                          className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm text-[#525252] transition-colors hover:bg-[#F6F8F6] dark:text-[#D4D4D4] dark:hover:bg-[#1A1B1C]"
-                        >
-                          <Users className="h-4 w-4" />
-                          Gerenciar membros
-                        </button>
-                        <div className="my-1 h-px bg-[#F1F3F1] dark:bg-[#232425]" />
-                        <button
-                          type="button"
-                          disabled={boards.length <= 1}
-                          onClick={() => {
-                            setDeleteBoardDialogOpen(true);
-                            setBoardSettingsOpen(false);
-                          }}
-                          className={cn(
-                            'flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm transition-colors',
-                            boards.length <= 1
-                              ? 'cursor-not-allowed text-[#D4D4D4] dark:text-[#5E6062]'
-                              : 'text-[#dc2626] hover:bg-[#FFF1F2] dark:text-[#ffb4b8] dark:hover:bg-[#281416]',
-                          )}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                          Excluir board
-                        </button>
-                      </div>
+                <div ref={boardNotificationsRef} className="relative" data-no-pan="true">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className={cn(
+                      'relative rounded-2xl border-[#E5E7E4] bg-white text-[#171717] hover:bg-[#F6F8F6] dark:border-[#2D2F30] dark:bg-[#171819] dark:text-white dark:hover:bg-[#1E2021]',
+                      boardNotificationsOpen &&
+                        'border-[#ffcfbf] bg-[#FFF4EE] text-[#c2410c] hover:bg-[#FFF4EE] dark:border-[#513126] dark:bg-[#26150f] dark:text-[#ffb39c] dark:hover:bg-[#26150f]',
                     )}
-                  </div>
-                )}
+                    onClick={() => setBoardNotificationsOpen((current) => !current)}
+                  >
+                    <Bell className="h-4 w-4" />
+                    {currentBoardUnreadNotificationCount > 0 ? (
+                      <span className="absolute -right-1 -top-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[#f32c2c] px-1 text-[10px] font-bold text-white shadow-[0_8px_18px_-10px_rgba(243,44,44,0.95)]">
+                        {currentBoardUnreadNotificationCount > 9
+                          ? '9+'
+                          : currentBoardUnreadNotificationCount}
+                      </span>
+                    ) : null}
+                  </Button>
+
+                  {boardNotificationsOpen && (
+                    <BoardNotificationsPopover
+                      boardName={currentBoard?.name || 'Meu quadro'}
+                      notifications={currentBoardNotifications}
+                      unreadCount={currentBoardUnreadNotificationCount}
+                      onOpenNotification={(notification) => {
+                        onOpenNotification?.(notification);
+                      }}
+                      onMarkAllRead={() => {
+                        onMarkBoardNotificationsRead?.(activeBoardId);
+                      }}
+                      onClose={() => setBoardNotificationsOpen(false)}
+                    />
+                  )}
+                </div>
+                <div ref={boardSettingsRef} className="relative" data-no-pan="true">
+                  <Button
+                    variant="outline"
+                    className="rounded-2xl border-[#E5E7E4] bg-white text-[#171717] hover:bg-[#F6F8F6] dark:border-[#2D2F30] dark:bg-[#171819] dark:text-white dark:hover:bg-[#1E2021]"
+                    onClick={() => setBoardSettingsOpen((current) => !current)}
+                  >
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+
+                  {boardSettingsOpen && (
+                    <div className="absolute right-0 top-[calc(100%+10px)] z-[95] w-[220px] rounded-2xl border border-[#E5E7E4] bg-white p-2 shadow-[0_24px_48px_-24px_rgba(15,23,42,0.35)] dark:border-[#2D2F30] dark:bg-[#171819]">
+                      <div className="px-3 py-2 text-sm font-semibold text-[#171717] dark:text-white">
+                        Configuracoes do board
+                      </div>
+                      <div className="my-1 h-px bg-[#F1F3F1] dark:bg-[#232425]" />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setHistoryModalOpen(true);
+                          setBoardSettingsOpen(false);
+                        }}
+                        className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm text-[#525252] transition-colors hover:bg-[#F6F8F6] dark:text-[#D4D4D4] dark:hover:bg-[#1A1B1C]"
+                      >
+                        <History className="h-4 w-4" />
+                          Histórico
+                      </button>
+
+                      {canManageBoards && (
+                        <>
+                          <div className="my-1 h-px bg-[#F1F3F1] dark:bg-[#232425]" />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditBoardModalOpen(true);
+                              setBoardSettingsOpen(false);
+                            }}
+                            className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm text-[#525252] transition-colors hover:bg-[#F6F8F6] dark:text-[#D4D4D4] dark:hover:bg-[#1A1B1C]"
+                          >
+                            <Pencil className="h-4 w-4" />
+                            Editar board
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setBoardMembersOpen(true);
+                              setBoardSettingsOpen(false);
+                            }}
+                            className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm text-[#525252] transition-colors hover:bg-[#F6F8F6] dark:text-[#D4D4D4] dark:hover:bg-[#1A1B1C]"
+                          >
+                            <Users className="h-4 w-4" />
+                            Gerenciar membros
+                          </button>
+                          <div className="my-1 h-px bg-[#F1F3F1] dark:bg-[#232425]" />
+                          <button
+                            type="button"
+                            disabled={boards.length <= 1}
+                            onClick={() => {
+                              setDeleteBoardDialogOpen(true);
+                              setBoardSettingsOpen(false);
+                            }}
+                            className={cn(
+                              'flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm transition-colors',
+                              boards.length <= 1
+                                ? 'cursor-not-allowed text-[#D4D4D4] dark:text-[#5E6062]'
+                                : 'text-[#dc2626] hover:bg-[#FFF1F2] dark:text-[#ffb4b8] dark:hover:bg-[#281416]',
+                            )}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            Excluir board
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
-
-          {hiddenColumns.length > 0 && (
+          {boardViewMode === 'kanban' && hiddenColumns.length > 0 && (
             <div className="px-6 pt-4">
               <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-[#E5E7E4] bg-white px-4 py-3 dark:border-[#2D2F30] dark:bg-[#171819]">
                 <span className="text-sm font-medium text-[#525252] dark:text-[#D4D4D4]">
@@ -3053,261 +3326,432 @@ export function KanbanWorkspacePage({
           )}
 
           <div className="flex-1">
-            <div
-              ref={boardScrollRef}
-              className="board-scrollbar flex cursor-grab items-start gap-4 overflow-x-auto overflow-y-visible px-6 py-6 active:cursor-grabbing"
-              onMouseDown={handleBoardMouseDown}
-              onMouseMove={handleBoardMouseMove}
-              onMouseUp={stopBoardPan}
-              onMouseLeave={stopBoardPan}
-            >
-              {visibleColumns.map((column) => {
-              const columnCards = cardsByColumn[column.id] || [];
-              const isDropTarget = dragOverColumn === column.id;
-              const isColumnDragTarget = columnDropIndicator?.targetColumnId === column.id;
+            {boardViewMode === 'calendar' ? (
+              <BoardCalendarView
+                month={calendarMonth}
+                selectedDate={selectedCalendarDate}
+                tasks={calendarTasks}
+                onMonthChange={handleCalendarMonthChange}
+                onSelectDate={(date) => {
+                  setSelectedCalendarDate(date);
+                  if (date) {
+                    setCalendarMonth(new Date(date.getFullYear(), date.getMonth(), 1));
+                  }
+                }}
+                onOpenTask={(taskId) => {
+                  const card = cards.find((item) => item.id === taskId);
+                  if (card) {
+                    setSelectedCard(card);
+                  }
+                }}
+                onCreateTaskAtDate={handleCreateTaskFromCalendarDate}
+              />
+            ) : (
+              <div
+                ref={boardScrollRef}
+                className="board-scrollbar flex cursor-grab items-start gap-4 overflow-x-auto overflow-y-visible px-6 py-6 active:cursor-grabbing"
+                onMouseDown={handleBoardMouseDown}
+                onMouseMove={handleBoardMouseMove}
+                onMouseUp={stopBoardPan}
+                onMouseLeave={stopBoardPan}
+              >
+                {visibleColumns.map((column) => {
+                  const columnCards = cardsByColumn[column.id] || [];
+                  const isDropTarget = dragOverColumn === column.id;
+                  const isColumnDragTarget = columnDropIndicator?.targetColumnId === column.id;
 
-              return (
-                <div
-                  key={column.id}
-                  className={cn(
-                    'relative shrink-0 transition-opacity',
-                    draggedColumnId === column.id && 'opacity-40',
-                  )}
-                  onDragOver={(event) => {
-                    if (draggedColumnId) {
-                      handleColumnDragOver(column.id, event);
-                      return;
-                    }
-                    event.preventDefault();
-                    setDragOverColumn(column.id);
-                    if (!columnCards.length) {
-                      setDropIndicator({
-                        columnKey: column.id,
-                        targetCardId: null,
-                        placement: 'after',
-                      });
-                    }
-                  }}
-                  onDragLeave={() => {
-                    if (dragOverColumn === column.id) {
-                      setDragOverColumn(null);
-                    }
-                  }}
-                  onDrop={(event) => {
-                    if (draggedColumnId) {
-                      event.preventDefault();
-                      handleColumnDrop(
-                        column.id,
-                        columnDropIndicator?.targetColumnId === column.id
-                          ? columnDropIndicator.placement
-                          : 'after',
-                      );
-                      return;
-                    }
-
-                    handleDrop(
-                      column.id,
-                      dropIndicator?.columnKey === column.id
-                        ? dropIndicator.targetCardId
-                        : null,
-                      dropIndicator?.columnKey === column.id
-                        ? dropIndicator.placement
-                        : 'after',
-                    );
-                  }}
-                >
-                  {isColumnDragTarget && columnDropIndicator?.placement === 'before' ? (
-                    <div className="absolute -left-2 top-4 z-20 h-[calc(100%-32px)] w-1 rounded-full bg-[#ff5623]" />
-                  ) : null}
-                  {isColumnDragTarget && columnDropIndicator?.placement === 'after' ? (
-                    <div className="absolute -right-2 top-4 z-20 h-[calc(100%-32px)] w-1 rounded-full bg-[#ff5623]" />
-                  ) : null}
-                  <KanbanColumn
-                    title={column.name}
-                    icon={column.icon}
-                    count={columnCards.length}
-                    accentColor={column.accentColor}
-                    headerLeading={
-                      <button
-                        type="button"
-                        draggable
-                        data-no-pan="true"
-                        onMouseDown={(event) => event.stopPropagation()}
-                        onDragStart={(event) => handleColumnDragStart(column.id, event)}
-                        onDragEnd={clearColumnDragState}
-                        className="rounded-lg p-1.5 text-[#737373] transition-colors hover:bg-white/70 hover:text-[#171717] active:cursor-grabbing dark:text-[#A3A3A3] dark:hover:bg-[#1b1c1d] dark:hover:text-white"
-                        title="Reordenar coluna"
-                      >
-                        <ChevronsUpDown className="h-4 w-4 cursor-grab" />
-                      </button>
-                    }
-                    className={cn(
-                      'min-w-[340px] max-w-[340px] shrink-0 border-[#E5E7E4] dark:border-[#232425]',
-                      column.bgClass,
-                      isDropTarget && 'ring-2 ring-[#ff5623]/35',
-                    )}
-                    actions={
-                      <div data-no-pan="true" className="flex items-center gap-1">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <button className="rounded-lg p-1.5 text-[#737373] transition-colors hover:bg-white/70 dark:text-[#A3A3A3] dark:hover:bg-[#1b1c1d]">
-                              <Filter className="h-4 w-4" />
-                            </button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent
-                            align="end"
-                            className="w-52 rounded-2xl border-[#E5E7E4] bg-white p-2 dark:border-[#2D2F30] dark:bg-[#171819]"
-                          >
-                            <DropdownMenuLabel>Filtrar coluna</DropdownMenuLabel>
-                            <DropdownMenuSeparator />
-                            {COLUMN_FILTER_OPTIONS.map((option) => (
-                              <DropdownMenuItem
-                                key={option.value}
-                                onClick={() => updateColumnFilter(column.id, option.value)}
-                                className={cn(
-                                  'rounded-xl px-3 py-2.5',
-                                  columnFilters[column.id] === option.value &&
-                                    'bg-[#FFF4EE] text-[#c2410c] dark:bg-[#26150f] dark:text-[#ffb39c]',
-                                )}
-                              >
-                                {option.label}
-                              </DropdownMenuItem>
-                            ))}
-                            {columnFilters[column.id] !== 'manual' && (
-                              <>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem
-                                  onClick={() => updateColumnFilter(column.id, columnFilters[column.id])}
-                                  className="rounded-xl px-3 py-2.5"
-                                >
-                                  Voltar para ordem manual
-                                </DropdownMenuItem>
-                              </>
-                            )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                        <button
-                          onClick={() => toggleColumnVisibility(column.id)}
-                          className="rounded-lg p-1.5 text-[#737373] transition-colors hover:bg-white/70 dark:text-[#A3A3A3] dark:hover:bg-[#1b1c1d]"
-                        >
-                          <EyeOff className="h-4 w-4" />
-                        </button>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <button className="rounded-lg p-1.5 text-[#737373] transition-colors hover:bg-white/70 dark:text-[#A3A3A3] dark:hover:bg-[#1b1c1d]">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent
-                            align="end"
-                            className="w-60 rounded-2xl border-[#E5E7E4] bg-white p-2 dark:border-[#2D2F30] dark:bg-[#171819]"
-                          >
-                            <DropdownMenuLabel>{column.name}</DropdownMenuLabel>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              onClick={() => openCreateTaskModal(column.id)}
-                              className="rounded-xl px-3 py-2.5"
-                            >
-                              <Plus className="h-4 w-4" />
-                              Adicionar tarefa
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => openEditColumnDialog(column)}
-                              className="rounded-xl px-3 py-2.5"
-                            >
-                              <Pencil className="h-4 w-4" />
-                              Editar coluna
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => archiveColumnTasks(column.id)}
-                              className="rounded-xl px-3 py-2.5"
-                            >
-                              <Archive className="h-4 w-4" />
-                              Arquivar todas as tarefas
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => setAutomationColumn(column)}
-                              className="rounded-xl px-3 py-2.5"
-                            >
-                              <WandSparkles className="h-4 w-4" />
-                              Criar automacao
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              onClick={() => deleteColumn(column.id)}
-                              variant="destructive"
-                              className="rounded-xl px-3 py-2.5"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                              Deletar coluna
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    }
-                  >
-                    {columnCards.map((card) => (
-                      <div
-                        key={card.id}
-                        data-no-pan="true"
-                        draggable={!movingCardIds.includes(card.id)}
-                        onDragStart={(event) => handleDragStart(card.id, event)}
-                        onDrag={handleDrag}
-                        onDragEnd={clearDragState}
-                        onDragOver={(event) => {
-                          if (draggedColumnId) {
-                            return;
-                          }
-                          event.preventDefault();
-                          event.stopPropagation();
-                          const rect = event.currentTarget.getBoundingClientRect();
-                          const placement =
-                            event.clientY < rect.top + rect.height / 2
-                              ? 'before'
-                              : 'after';
-                          setDragOverColumn(column.id);
+                  return (
+                    <div
+                      key={column.id}
+                      className={cn(
+                        'relative shrink-0 transition-opacity',
+                        draggedColumnId === column.id && 'opacity-40',
+                      )}
+                      onDragOver={(event) => {
+                        if (draggedColumnId) {
+                          handleColumnDragOver(column.id, event);
+                          return;
+                        }
+                        event.preventDefault();
+                        setDragOverColumn(column.id);
+                        if (!columnCards.length) {
                           setDropIndicator({
                             columnKey: column.id,
-                            targetCardId: card.id,
-                            placement,
+                            targetCardId: null,
+                            placement: 'after',
                           });
-                        }}
-                        className={cn(
-                          'group relative cursor-grab active:cursor-grabbing',
-                          movingCardIds.includes(card.id) &&
-                            'animate-card-fly-to-completed pointer-events-none',
-                          draggedCardId === card.id && 'opacity-0',
-                        )}
-                      >
-                        {dropIndicator?.columnKey === column.id &&
-                          dropIndicator?.targetCardId === card.id &&
-                          dropIndicator.placement === 'before' && (
-                            <div className="mb-2 h-[3px] rounded-full bg-[#ff5623]" />
-                          )}
-                        {renderCard(card)}
-                        {dropIndicator?.columnKey === column.id &&
-                          dropIndicator?.targetCardId === card.id &&
-                          dropIndicator.placement === 'after' && (
-                            <div className="mt-2 h-[3px] rounded-full bg-[#ff5623]" />
-                          )}
-                      </div>
-                    ))}
+                        }
+                      }}
+                      onDragLeave={() => {
+                        if (dragOverColumn === column.id) {
+                          setDragOverColumn(null);
+                        }
+                      }}
+                      onDrop={(event) => {
+                        if (draggedColumnId) {
+                          event.preventDefault();
+                          handleColumnDrop(
+                            column.id,
+                            columnDropIndicator?.targetColumnId === column.id
+                              ? columnDropIndicator.placement
+                              : 'after',
+                          );
+                          return;
+                        }
 
-                    {columnCards.length === 0 && (
-                      <div className="rounded-2xl border border-dashed border-[#D5DAD5] bg-white/70 px-4 py-8 text-center text-sm text-[#737373] dark:border-[#2F3132] dark:bg-[#161718] dark:text-[#A3A3A3]">
-                        Solte um card aqui
-                      </div>
-                    )}
-                  </KanbanColumn>
-                </div>
-              );
-              })}
-            </div>
+                        handleDrop(
+                          column.id,
+                          dropIndicator?.columnKey === column.id
+                            ? dropIndicator.targetCardId
+                            : null,
+                          dropIndicator?.columnKey === column.id
+                            ? dropIndicator.placement
+                            : 'after',
+                        );
+                      }}
+                    >
+                      {isColumnDragTarget && columnDropIndicator?.placement === 'before' ? (
+                        <div className="absolute -left-2 top-4 z-20 h-[calc(100%-32px)] w-1 rounded-full bg-[#ff5623]" />
+                      ) : null}
+                      {isColumnDragTarget && columnDropIndicator?.placement === 'after' ? (
+                        <div className="absolute -right-2 top-4 z-20 h-[calc(100%-32px)] w-1 rounded-full bg-[#ff5623]" />
+                      ) : null}
+                      <KanbanColumn
+                        title={column.name}
+                        icon={column.icon}
+                        count={columnCards.length}
+                        accentColor={column.accentColor}
+                        headerLeading={
+                          <button
+                            type="button"
+                            draggable
+                            data-no-pan="true"
+                            onMouseDown={(event) => event.stopPropagation()}
+                            onDragStart={(event) => handleColumnDragStart(column.id, event)}
+                            onDragEnd={clearColumnDragState}
+                            className="rounded-lg p-1.5 text-[#737373] transition-colors hover:bg-white/70 hover:text-[#171717] active:cursor-grabbing dark:text-[#A3A3A3] dark:hover:bg-[#1b1c1d] dark:hover:text-white"
+                            title="Reordenar coluna"
+                          >
+                            <ChevronsUpDown className="h-4 w-4 cursor-grab" />
+                          </button>
+                        }
+                        className={cn(
+                          'min-w-[340px] max-w-[340px] shrink-0 border-[#E5E7E4] dark:border-[#232425]',
+                          column.bgClass,
+                          isDropTarget && 'ring-2 ring-[#ff5623]/35',
+                        )}
+                        actions={
+                          <div data-no-pan="true" className="flex items-center gap-1">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <button className="rounded-lg p-1.5 text-[#737373] transition-colors hover:bg-white/70 dark:text-[#A3A3A3] dark:hover:bg-[#1b1c1d]">
+                                  <Filter className="h-4 w-4" />
+                                </button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent
+                                align="end"
+                                className="w-52 rounded-2xl border-[#E5E7E4] bg-white p-2 dark:border-[#2D2F30] dark:bg-[#171819]"
+                              >
+                                <DropdownMenuLabel>Filtrar coluna</DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                {COLUMN_FILTER_OPTIONS.map((option) => (
+                                  <DropdownMenuItem
+                                    key={option.value}
+                                    onClick={() => updateColumnFilter(column.id, option.value)}
+                                    className={cn(
+                                      'rounded-xl px-3 py-2.5',
+                                      columnFilters[column.id] === option.value &&
+                                        'bg-[#FFF4EE] text-[#c2410c] dark:bg-[#26150f] dark:text-[#ffb39c]',
+                                    )}
+                                  >
+                                    {option.label}
+                                  </DropdownMenuItem>
+                                ))}
+                                {columnFilters[column.id] !== 'manual' && (
+                                  <>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem
+                                      onClick={() => updateColumnFilter(column.id, columnFilters[column.id])}
+                                      className="rounded-xl px-3 py-2.5"
+                                    >
+                                      Voltar para ordem manual
+                                    </DropdownMenuItem>
+                                  </>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                            <button
+                              onClick={() => toggleColumnVisibility(column.id)}
+                              className="rounded-lg p-1.5 text-[#737373] transition-colors hover:bg-white/70 dark:text-[#A3A3A3] dark:hover:bg-[#1b1c1d]"
+                            >
+                              <EyeOff className="h-4 w-4" />
+                            </button>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <button className="rounded-lg p-1.5 text-[#737373] transition-colors hover:bg-white/70 dark:text-[#A3A3A3] dark:hover:bg-[#1b1c1d]">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent
+                                align="end"
+                                className="w-60 rounded-2xl border-[#E5E7E4] bg-white p-2 dark:border-[#2D2F30] dark:bg-[#171819]"
+                              >
+                                <DropdownMenuLabel>{column.name}</DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  onClick={() => openCreateTaskModal(column.id)}
+                                  className="rounded-xl px-3 py-2.5"
+                                >
+                                  <Plus className="h-4 w-4" />
+                                  Adicionar tarefa
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => openEditColumnDialog(column)}
+                                  className="rounded-xl px-3 py-2.5"
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                  Editar coluna
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => archiveColumnTasks(column.id)}
+                                  className="rounded-xl px-3 py-2.5"
+                                >
+                                  <Archive className="h-4 w-4" />
+                                  Arquivar todas as tarefas
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => setAutomationColumn(column)}
+                                  className="rounded-xl px-3 py-2.5"
+                                >
+                                  <WandSparkles className="h-4 w-4" />
+                                  Criar automacao
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  onClick={() => deleteColumn(column.id)}
+                                  variant="destructive"
+                                  className="rounded-xl px-3 py-2.5"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                  Deletar coluna
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                        }
+                      >
+                        {columnCards.map((card) => (
+                          <div
+                            key={card.id}
+                            data-no-pan="true"
+                            draggable={!movingCardIds.includes(card.id)}
+                            onDragStart={(event) => handleDragStart(card.id, event)}
+                            onDrag={handleDrag}
+                            onDragEnd={clearDragState}
+                            onDragOver={(event) => {
+                              if (draggedColumnId) {
+                                return;
+                              }
+                              event.preventDefault();
+                              event.stopPropagation();
+                              const rect = event.currentTarget.getBoundingClientRect();
+                              const placement =
+                                event.clientY < rect.top + rect.height / 2
+                                  ? 'before'
+                                  : 'after';
+                              setDragOverColumn(column.id);
+                              setDropIndicator({
+                                columnKey: column.id,
+                                targetCardId: card.id,
+                                placement,
+                              });
+                            }}
+                            className={cn(
+                              'group relative cursor-grab active:cursor-grabbing',
+                              movingCardIds.includes(card.id) &&
+                                'animate-card-fly-to-completed pointer-events-none',
+                              draggedCardId === card.id && 'opacity-0',
+                            )}
+                          >
+                            {dropIndicator?.columnKey === column.id &&
+                              dropIndicator?.targetCardId === card.id &&
+                              dropIndicator.placement === 'before' && (
+                                <div className="mb-2 h-[3px] rounded-full bg-[#ff5623]" />
+                              )}
+                            {renderCard(card)}
+                            {dropIndicator?.columnKey === column.id &&
+                              dropIndicator?.targetCardId === card.id &&
+                              dropIndicator.placement === 'after' && (
+                                <div className="mt-2 h-[3px] rounded-full bg-[#ff5623]" />
+                              )}
+                          </div>
+                        ))}
+
+                        {columnCards.length === 0 && (
+                          <div className="rounded-2xl border border-dashed border-[#D5DAD5] bg-white/70 px-4 py-8 text-center text-sm text-[#737373] dark:border-[#2F3132] dark:bg-[#161718] dark:text-[#A3A3A3]">
+                            Solte um card aqui
+                          </div>
+                        )}
+                      </KanbanColumn>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       </div>
 
-      {dragPreview && draggedCard && (
+      {searchPanelOpen && (
+        <div className="fixed inset-0 z-[130] flex items-start justify-center bg-[rgba(10,10,10,0.26)] px-4 pb-6 pt-[10vh] backdrop-blur-md">
+          <div
+            className="absolute inset-0"
+            onClick={() => {
+              setSearchPanelOpen(false);
+              setSearchQuery('');
+            }}
+          />
+
+          <div className="relative z-[1] w-full max-w-4xl overflow-hidden rounded-[32px] border border-[#E5E7E4] bg-[rgba(255,255,255,0.98)] shadow-[0_36px_80px_-40px_rgba(15,23,42,0.5)] backdrop-blur-xl dark:border-[#2D2F30] dark:bg-[rgba(18,19,19,0.98)] dark:shadow-[0_40px_90px_-46px_rgba(0,0,0,0.75)]">
+            <div className="border-b border-[#EEF1ED] px-6 py-5 dark:border-[#232425]">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h3 className="text-[26px] font-bold tracking-[-0.04em] text-[#171717] dark:text-white">
+                    Pesquisar tarefas
+                  </h3>
+                  <p className="mt-1 text-sm text-[#737373] dark:text-[#A3A3A3]">
+                    {'Busque por t\u00edtulo, cliente, tag, descri\u00e7\u00e3o ou respons\u00e1vel dentro deste board.'}
+                  </p>
+                </div>
+
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="rounded-2xl text-[#737373] hover:bg-[#F6F8F6] hover:text-[#171717] dark:text-[#A3A3A3] dark:hover:bg-[#1A1B1C] dark:hover:text-white"
+                  onClick={() => {
+                    setSearchPanelOpen(false);
+                    setSearchQuery('');
+                  }}
+                >
+                  Fechar
+                </Button>
+              </div>
+
+              <div className="relative mt-5">
+                <Search className="pointer-events-none absolute left-5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#A3A3A3]" />
+                <Input
+                  ref={searchInputRef}
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  placeholder="Digite para encontrar uma tarefa..."
+                  className="h-14 rounded-[22px] border-[#E5E7E4] bg-white pl-12 pr-4 text-sm shadow-[0_12px_30px_-28px_rgba(15,23,42,0.24)] dark:border-[#2D2F30] dark:bg-[#171819]"
+                />
+              </div>
+            </div>
+
+            <div className="max-h-[60vh] overflow-y-auto px-4 py-4">
+              {!searchQuery.trim() ? (
+                <div className="flex min-h-[240px] flex-col items-center justify-center rounded-[28px] border border-dashed border-[#DDE2DD] bg-[#FBFCFB] px-6 text-center dark:border-[#2A2C2D] dark:bg-[#171819]">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-3xl bg-[#FFF4EE] text-[#c2410c] dark:bg-[#26150f] dark:text-[#ffb39c]">
+                    <Search className="h-5 w-5" />
+                  </div>
+                  <p className="mt-4 text-sm font-semibold text-[#171717] dark:text-white">
+                    Comece a digitar para buscar
+                  </p>
+                  <p className="mt-1 max-w-[34ch] text-sm text-[#737373] dark:text-[#A3A3A3]">
+                    {'Os resultados v\u00e3o aparecer aqui assim que voc\u00ea pesquisar.'}
+                  </p>
+                </div>
+              ) : boardSearchResults.length === 0 ? (
+                <div className="flex min-h-[240px] flex-col items-center justify-center rounded-[28px] border border-dashed border-[#DDE2DD] bg-[#FBFCFB] px-6 text-center dark:border-[#2A2C2D] dark:bg-[#171819]">
+                  <p className="text-sm font-semibold text-[#171717] dark:text-white">
+                    Nenhuma tarefa encontrada
+                  </p>
+                  <p className="mt-1 max-w-[36ch] text-sm text-[#737373] dark:text-[#A3A3A3]">
+                    {'Tente buscar por outro nome, cliente, tag ou respons\u00e1vel.'}
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {boardSearchResults.map((card) => {
+                    const column = getColumnById(currentBoardColumns, card.columnId);
+                    const assigneeLabel = card.assignees.length
+                      ? card.assignees.map((assignee) => assignee.name).join(', ')
+                      : 'Sem respons�veis';
+                    const cardDescription = getRichTextPlainText(card.description);
+
+                    return (
+                      <button
+                        key={card.id}
+                        type="button"
+                        className="group flex w-full items-center justify-between gap-4 rounded-[24px] border border-[#E5E7E4] bg-white px-4 py-4 text-left transition-all duration-200 hover:border-[#D5DBD5] hover:bg-[#FCFDFC] hover:shadow-[0_14px_30px_-24px_rgba(23,23,23,0.18)] dark:border-[#232425] dark:bg-[#121313] dark:hover:border-[#343638] dark:hover:bg-[#171819] dark:hover:shadow-[0_18px_36px_-28px_rgba(0,0,0,0.45)]"
+                        onClick={() => {
+                          setSelectedCard(card);
+                          setSearchPanelOpen(false);
+                          setSearchQuery('');
+                        }}
+                      >
+                        <div className="min-w-0 flex-1 space-y-3">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span
+                              className="h-2.5 w-2.5 rounded-full"
+                              style={{ backgroundColor: column?.accentColor || '#ff5623' }}
+                            />
+                            <p className="truncate text-[15px] font-semibold tracking-[-0.02em] text-[#171717] dark:text-white">
+                              {card.title}
+                            </p>
+                            <StatusBadge
+                              status={card.status}
+                              labelOverride={column?.name || 'Sem coluna'}
+                            />
+                            {card.dateAlert === 'overdue' ? (
+                              <span className="inline-flex items-center rounded-full bg-[#FEF0F0] px-2.5 py-1 text-xs font-semibold text-[#dc2626] dark:bg-[#291516] dark:text-[#fca5a5]">
+                                Atrasada
+                              </span>
+                            ) : card.dateAlert === 'approaching' ? (
+                              <span className="inline-flex items-center rounded-full bg-[#FFF8E5] px-2.5 py-1 text-xs font-semibold text-[#b45309] dark:bg-[#241b0c] dark:text-[#fcd34d]">
+                                {'Prazo pr�ximo'}
+                              </span>
+                            ) : null}
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-[#737373] dark:text-[#A3A3A3]">
+                            <span className="inline-flex items-center gap-1.5">
+                              <Building2 className="h-3.5 w-3.5 opacity-75" />
+                              {card.client?.name || cardDescription || 'Sem contexto'}
+                            </span>
+                            <span
+                              className={cn(
+                                'inline-flex items-center gap-1.5',
+                                card.dateAlert === 'overdue'
+                                  ? 'font-semibold text-[#dc2626] dark:text-[#fca5a5]'
+                                  : card.dateAlert === 'approaching'
+                                    ? 'font-semibold text-[#b45309] dark:text-[#fcd34d]'
+                                    : '',
+                              )}
+                            >
+                              <Calendar className="h-3.5 w-3.5 opacity-75" />
+                              {formatTaskDueDate(card.dueDate) || 'Sem prazo'}
+                            </span>
+                            <span className="truncate text-sm text-[#737373] dark:text-[#A3A3A3]">
+                              {assigneeLabel}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="shrink-0">
+                          <AvatarStack avatars={card.assignees} max={4} size="sm" />
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+      {boardViewMode === 'kanban' && dragPreview && draggedCard && (
         <div
           className="pointer-events-none fixed left-0 top-0 z-[120] w-[340px]"
           style={{
@@ -3763,6 +4207,7 @@ export function KanbanWorkspacePage({
           setCreateTaskModalOpen(false);
           setCreateTaskStartColumnId(null);
           setEditingTaskId(null);
+          setCreateTaskPrefill(null);
         }}
         boardId={activeBoardId}
         columns={currentBoardColumns.map((column) => ({
@@ -3773,7 +4218,7 @@ export function KanbanWorkspacePage({
         }))}
         defaultColumnId={getDefaultTaskColumnId(currentBoardColumns, createTaskStartColumnId ?? undefined)}
         onCreateTask={handleCreateTask}
-        initialTask={editingTaskInitialData}
+        initialTask={createTaskInitialData}
         mode={editingTask ? 'edit' : 'create'}
       />
 
@@ -3852,3 +4297,4 @@ export function KanbanWorkspacePage({
     </section>
   );
 }
+

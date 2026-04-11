@@ -1,19 +1,13 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle,
   ArrowRight,
-  BookOpen,
-  Building2,
   Calendar,
   CheckCircle2,
   CircleDot,
   ExternalLink,
   FolderKanban,
-  Link2,
-  MessageSquare,
-  Paperclip,
   Plus,
-  Sparkles,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -24,12 +18,18 @@ import { overviewRepository, type OverviewUserContext } from '../../../repositor
 import { OverviewTaskListItem } from './OverviewTaskListItem';
 import { cn } from '../ui/utils';
 import { ClientLibraryModal } from '../shared/ClientLibraryModal';
+import { NotificationCard, type NotificationItem } from '../shared/NotificationCard';
 
 interface OverviewDashboardPageProps {
   snapshot: PersistedKanbanWorkspaceSnapshot;
   viewer: BoardViewerContext;
   currentUser: OverviewUserContext;
   onOpenBoard: (boardId?: string, taskId?: string) => void;
+  notifications: NotificationItem[];
+  unreadNotificationCount: number;
+  onOpenNotification: (notification: NotificationItem) => void;
+  onMarkAllNotificationsRead: () => void;
+  focusNotificationsSignal?: number;
 }
 
 type TaskFilter = 'all' | 'today' | 'overdue';
@@ -51,13 +51,6 @@ const KPI_CARD_STYLES = {
     icon: 'bg-[#FEF0F0] text-[#dc2626] dark:bg-[#291516] dark:text-[#fca5a5]',
     badge: 'bg-[#FEF0F0] text-[#dc2626] dark:bg-[#291516] dark:text-[#fca5a5]',
   },
-} as const;
-
-const RESOURCE_ICON = {
-  drive: Paperclip,
-  brand: Sparkles,
-  social: Building2,
-  links: Link2,
 } as const;
 
 const ALERT_ICON = {
@@ -110,17 +103,33 @@ export function OverviewDashboardPage({
   viewer,
   currentUser,
   onOpenBoard,
+  notifications,
+  unreadNotificationCount,
+  onOpenNotification,
+  onMarkAllNotificationsRead,
+  focusNotificationsSignal = 0,
 }: OverviewDashboardPageProps) {
   const [taskFilter, setTaskFilter] = useState<TaskFilter>('all');
   const [clientLibraryVersion, setClientLibraryVersion] = useState(0);
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [showClientLibrarySelector, setShowClientLibrarySelector] = useState(false);
+  const [visibleTaskCount, setVisibleTaskCount] = useState(6);
+  const [visibleNotificationCount, setVisibleNotificationCount] = useState(5);
+  const notificationsSectionRef = useRef<HTMLElement | null>(null);
+
   const overview = useMemo(
     () => overviewRepository.build(snapshot, viewer, currentUser),
     [clientLibraryVersion, currentUser, snapshot, viewer],
   );
-  const allClientLibraries = useMemo(() => clientLibraryRepository.listAll(), [clientLibraryVersion]);
-  const visibleClientLibraries = overview.clientRows.length > 0 ? overview.clientRows : allClientLibraries.slice(0, 6);
+
+  const allClientLibraries = useMemo(
+    () => clientLibraryRepository.listAll(),
+    [clientLibraryVersion],
+  );
+
+  const visibleClientLibraries = overview.clientRows.length > 0
+    ? overview.clientRows
+    : allClientLibraries.slice(0, 6);
 
   const currentDateLabel = useMemo(() => {
     const raw = format(new Date(), "EEEE, d 'de' MMMM", { locale: ptBR });
@@ -138,6 +147,30 @@ export function OverviewDashboardPage({
 
     return overview.taskRows;
   }, [overview.taskRows, taskFilter]);
+
+  const visibleNotifications = useMemo(
+    () => notifications.slice(0, visibleNotificationCount),
+    [notifications, visibleNotificationCount],
+  );
+
+  useEffect(() => {
+    setVisibleTaskCount(6);
+  }, [filteredTasks]);
+
+  useEffect(() => {
+    setVisibleNotificationCount(5);
+  }, [notifications]);
+
+  useEffect(() => {
+    if (!focusNotificationsSignal) {
+      return;
+    }
+
+    notificationsSectionRef.current?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start',
+    });
+  }, [focusNotificationsSignal]);
 
   const openBoardInNewTab = (boardId?: string, taskId?: string) => {
     if (typeof window === 'undefined') {
@@ -162,288 +195,322 @@ export function OverviewDashboardPage({
 
   return (
     <>
-    <div className="mx-auto w-full max-w-[1560px] px-5 py-6 md:px-8 md:py-8">
-      <div className="space-y-8">
-        <header className="space-y-3">
-          <p className="text-sm font-medium text-[#737373] dark:text-[#A3A3A3]">{currentDateLabel}</p>
-          <div>
-            <h1 className="text-[32px] font-bold tracking-[-0.04em] text-[#171717] dark:text-white">
-              Visão Geral
-            </h1>
-            <p className="mt-2 text-[15px] text-[#737373] dark:text-[#A3A3A3]">
-              Acompanhe suas tarefas, atividades e informações importantes.
-            </p>
-          </div>
-        </header>
-
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {overview.kpis.map((kpi) => {
-            const icon =
-              kpi.id === 'in-progress'
-                ? CircleDot
-                : kpi.id === 'completed-today'
-                  ? CheckCircle2
-                  : kpi.id === 'due-soon'
-                    ? Calendar
-                    : AlertTriangle;
-            const Icon = icon;
-            const tone = KPI_CARD_STYLES[kpi.tone];
-
-            return (
-              <div
-                key={kpi.id}
-                className="rounded-[24px] border border-[#E5E7E4] bg-white p-5 dark:border-[#232425] dark:bg-[#121313]"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <span className={cn('inline-flex h-11 w-11 items-center justify-center rounded-2xl', tone.icon)}>
-                    <Icon className="h-5 w-5" />
-                  </span>
-                  {kpi.badge ? (
-                    <span className={cn('inline-flex rounded-full px-2.5 py-1 text-xs font-semibold', tone.badge)}>
-                      {kpi.badge}
-                    </span>
-                  ) : null}
-                </div>
-                <p className="mt-5 text-sm font-medium text-[#737373] dark:text-[#A3A3A3]">{kpi.title}</p>
-                <p className="mt-2 text-[34px] font-bold tracking-[-0.04em] text-[#171717] dark:text-white">
-                  {kpi.value}
-                </p>
-              </div>
-            );
-          })}
-        </div>
-
-        <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,0.9fr)]">
-          <SectionCard
-            title="Minhas tarefas"
-            subtitle={`${overview.assignedCount} tarefas atribuídas`}
-            actionLabel="Ver todas as tarefas"
-            onAction={() => openBoardInNewTab()}
-          >
-            <div className="mb-5 flex flex-wrap gap-2">
-              {[
-                { value: 'all' as const, label: 'Todas' },
-                { value: 'today' as const, label: 'Hoje' },
-                { value: 'overdue' as const, label: 'Atrasadas' },
-              ].map((tab) => {
-                const active = taskFilter === tab.value;
-                return (
-                  <button
-                    key={tab.value}
-                    type="button"
-                    onClick={() => setTaskFilter(tab.value)}
-                    className={cn(
-                      'rounded-full px-4 py-2 text-sm font-semibold transition-colors',
-                      active
-                        ? 'bg-[#171717] text-white dark:bg-[#F5F5F5] dark:text-[#121313]'
-                        : 'bg-[#F6F8F6] text-[#737373] hover:text-[#171717] dark:bg-[#191A1B] dark:text-[#A3A3A3] dark:hover:text-white',
-                    )}
-                  >
-                    {tab.label}
-                  </button>
-                );
-              })}
+      <div className="mx-auto w-full max-w-[1560px] px-5 py-6 md:px-8 md:py-8">
+        <div className="space-y-8">
+          <header className="space-y-3">
+            <p className="text-sm font-medium text-[#737373] dark:text-[#A3A3A3]">{currentDateLabel}</p>
+            <div>
+              <h1 className="text-[32px] font-bold tracking-[-0.04em] text-[#171717] dark:text-white">
+                Visao Geral
+              </h1>
+              <p className="mt-2 text-[15px] text-[#737373] dark:text-[#A3A3A3]">
+                Acompanhe suas tarefas, avisos e notificacoes em um unico lugar.
+              </p>
             </div>
+          </header>
 
-            <div className="space-y-3">
-              {filteredTasks.length === 0 ? (
-                <div className="rounded-[24px] border border-dashed border-[#D8DDD8] bg-[#FBFCFB] px-5 py-8 text-center dark:border-[#2A2C2D] dark:bg-[#171819]">
-                  <p className="text-sm font-semibold text-[#171717] dark:text-white">Nenhuma tarefa neste filtro</p>
-                  <p className="mt-1 text-sm text-[#737373] dark:text-[#A3A3A3]">
-                    Ajuste o filtro para revisar outras tarefas.
-                  </p>
-                </div>
-              ) : (
-                filteredTasks
-                  .slice(0, 6)
-                  .map((task) => (
-                    <OverviewTaskListItem
-                      key={task.id}
-                      task={task}
-                      onOpen={(selectedTask) => openBoardInNewTab(selectedTask.boardId, selectedTask.id)}
-                    />
-                  ))
-              )}
-            </div>
-          </SectionCard>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+            {overview.kpis.map((kpi) => {
+              const icon =
+                kpi.id === 'in-progress'
+                  ? CircleDot
+                  : kpi.id === 'completed-today'
+                    ? CheckCircle2
+                    : kpi.id === 'due-soon'
+                      ? Calendar
+                      : AlertTriangle;
+              const Icon = icon;
+              const tone = KPI_CARD_STYLES[kpi.tone];
 
-          <SectionCard title="Avisos" subtitle="Itens que exigem atenção imediata">
-            <div className="mb-4 flex items-center justify-between rounded-[20px] bg-[#F6F8F6] px-4 py-3 dark:bg-[#171819]">
-              <p className="text-sm font-medium text-[#525252] dark:text-[#D4D4D4]">Alertas ativos</p>
-              <span className="inline-flex h-8 min-w-8 items-center justify-center rounded-full bg-[#171717] px-2 text-xs font-semibold text-white dark:bg-white dark:text-[#121313]">
-                {overview.alertRows.length}
-              </span>
-            </div>
-
-            <div className="space-y-3">
-              {overview.alertRows.length === 0 ? (
-                <div className="rounded-[24px] border border-dashed border-[#D8DDD8] bg-[#FBFCFB] px-5 py-8 text-center dark:border-[#2A2C2D] dark:bg-[#171819]">
-                  <p className="text-sm font-semibold text-[#171717] dark:text-white">Nenhum aviso crítico</p>
-                  <p className="mt-1 text-sm text-[#737373] dark:text-[#A3A3A3]">
-                    Seus prazos estão controlados neste momento.
-                  </p>
-                </div>
-              ) : (
-                overview.alertRows.map((alert) => {
-                  const Icon = ALERT_ICON[alert.tone];
-                  return (
-                    <div
-                      key={alert.id}
-                      className={cn(
-                        'group rounded-[22px] border px-4 py-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_14px_30px_-24px_rgba(23,23,23,0.22)] dark:hover:shadow-[0_18px_36px_-28px_rgba(0,0,0,0.5)]',
-                        alert.tone === 'danger'
-                          ? 'border-[#F6CDCD] bg-[#FFF7F7] hover:border-[#F0B8B8] hover:bg-[#FFF9F9] dark:border-[#4B2225] dark:bg-[#1D1213] dark:hover:border-[#6A2D31] dark:hover:bg-[#221415]'
-                          : 'border-[#F4E4B3] bg-[#FFFDF3] hover:border-[#E7CF89] hover:bg-[#FFFEF8] dark:border-[#5A4520] dark:bg-[#1C1810] dark:hover:border-[#7A602B] dark:hover:bg-[#211B11]',
-                      )}
-                    >
-                      <div className="flex items-start gap-3">
-                        <span
-                          className={cn(
-                            'inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl',
-                            alert.tone === 'danger'
-                              ? 'bg-[#FEF0F0] text-[#dc2626] dark:bg-[#291516] dark:text-[#fca5a5]'
-                              : 'bg-[#FFF8E5] text-[#b45309] dark:bg-[#241b0c] dark:text-[#fcd34d]',
-                          )}
-                        >
-                          <Icon className="h-4.5 w-4.5" />
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-semibold text-[#171717] dark:text-white">{alert.title}</p>
-                          <p className="mt-1 text-sm text-[#737373] dark:text-[#A3A3A3]">{alert.description}</p>
-                          <p className="mt-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#8A8A8A] dark:text-[#A3A3A3]">
-                            {alert.priorityLabel}
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => openBoardInNewTab(alert.boardId, alert.taskId)}
-                          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#E5E7E4] text-[#525252] transition-colors group-hover:bg-white group-hover:text-[#171717] dark:border-[#2D2F30] dark:text-[#D4D4D4] dark:group-hover:bg-[#171819] dark:group-hover:text-white"
-                          aria-label="Ver tarefa"
-                        >
-                          <ArrowRight className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </SectionCard>
-        </div>
-
-        <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
-          <SectionCard
-            title="Seus boards"
-            subtitle="Acesso rápido aos seus workspaces"
-            actionLabel="Ver todos"
-            onAction={() => openBoardInNewTab()}
-          >
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-              {overview.boardRows.map((board) => (
-                <button
-                  key={board.id}
-                  type="button"
-                  onClick={() => openBoardInNewTab(board.id)}
-                  className="group rounded-[24px] border border-[#E5E7E4] bg-[#FBFCFB] p-4 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-[#D5DBD5] hover:bg-white hover:shadow-[0_14px_30px_-24px_rgba(23,23,23,0.28)] dark:border-[#232425] dark:bg-[#171819] dark:hover:border-[#343638] dark:hover:bg-[#1B1D1E] dark:hover:shadow-[0_18px_36px_-28px_rgba(0,0,0,0.55)]"
+              return (
+                <div
+                  key={kpi.id}
+                  className="rounded-[24px] border border-[#E5E7E4] bg-white p-5 dark:border-[#232425] dark:bg-[#121313]"
                 >
                   <div className="flex items-start justify-between gap-3">
-                    <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-[#FFF1EA] text-[#ff5623] dark:bg-[#26150f] dark:text-[#ffb39c]">
-                      <FolderKanban className="h-5 w-5" />
+                    <span className={cn('inline-flex h-11 w-11 items-center justify-center rounded-2xl', tone.icon)}>
+                      <Icon className="h-5 w-5" />
                     </span>
-                    <ExternalLink className="h-4 w-4 text-[#A3A3A3] transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-                  </div>
-                  <p className="mt-4 text-[15px] font-semibold text-[#171717] dark:text-white">{board.name}</p>
-                  <p className="mt-1 line-clamp-2 text-sm text-[#737373] dark:text-[#A3A3A3]">
-                    {board.description || 'Board operacional do workspace'}
-                  </p>
-                  <div className="mt-4 flex items-center gap-3 text-xs font-semibold text-[#737373] dark:text-[#A3A3A3]">
-                    <span>{board.activeTasks} tarefas ativas</span>
-                    <span>{board.overdueTasks} atrasadas</span>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </SectionCard>
-
-          <SectionCard title="Atividade recente" actionLabel="Ver tudo" onAction={() => openBoardInNewTab()}>
-            <div className="space-y-3">
-              {overview.activityRows.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => openBoardInNewTab(item.boardId, item.taskId)}
-                  className="group flex w-full items-start gap-3 rounded-[22px] border border-[#E5E7E4] bg-[#FBFCFB] px-4 py-4 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-[#D5DBD5] hover:bg-white hover:shadow-[0_14px_30px_-24px_rgba(23,23,23,0.28)] dark:border-[#232425] dark:bg-[#171819] dark:hover:border-[#343638] dark:hover:bg-[#1B1D1E] dark:hover:shadow-[0_18px_36px_-28px_rgba(0,0,0,0.55)]"
-                >
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#F3F3F3] dark:bg-[#232325]">
-                    {item.actorImage ? (
-                      <img src={item.actorImage} alt={item.actorName} className="h-full w-full object-cover" />
-                    ) : (
-                      <span className="text-xs font-semibold text-[#171717] dark:text-white">
-                        {item.actorName
-                          .split(' ')
-                          .map((part) => part[0])
-                          .join('')
-                          .slice(0, 2)
-                          .toUpperCase()}
+                    {kpi.badge ? (
+                      <span className={cn('inline-flex rounded-full px-2.5 py-1 text-xs font-semibold', tone.badge)}>
+                        {kpi.badge}
                       </span>
-                    )}
+                    ) : null}
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm text-[#525252] dark:text-[#D4D4D4]">
-                      <span className="font-semibold text-[#171717] dark:text-white">{item.actorName}</span>{' '}
-                      {item.action}{' '}
-                      <span className="font-semibold text-[#171717] dark:text-white">{item.taskTitle}</span>
-                    </p>
-                    <p className="mt-1 text-xs text-[#A3A3A3]">{item.timestampLabel}</p>
-                  </div>
-                  <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#E5E7E4] text-[#525252] transition-all duration-200 group-hover:bg-white group-hover:text-[#171717] dark:border-[#2D2F30] dark:text-[#D4D4D4] dark:group-hover:bg-[#171819] dark:group-hover:text-white">
-                    <ArrowRight className="h-4 w-4" />
+                  <p className="mt-5 text-sm font-medium text-[#737373] dark:text-[#A3A3A3]">{kpi.title}</p>
+                  <p className="mt-2 text-[34px] font-bold tracking-[-0.04em] text-[#171717] dark:text-white">
+                    {kpi.value}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,0.9fr)]">
+            <div className="space-y-5">
+              <SectionCard
+                title="Minhas tarefas"
+                subtitle={`${overview.assignedCount} tarefas atribuidas`}
+              >
+                <div className="mb-5 flex flex-wrap gap-2">
+                  {[
+                    { value: 'all' as const, label: 'Todas' },
+                    { value: 'today' as const, label: 'Hoje' },
+                    { value: 'overdue' as const, label: 'Atrasadas' },
+                  ].map((tab) => {
+                    const active = taskFilter === tab.value;
+                    return (
+                      <button
+                        key={tab.value}
+                        type="button"
+                        onClick={() => setTaskFilter(tab.value)}
+                        className={cn(
+                          'rounded-full px-4 py-2 text-sm font-semibold transition-colors',
+                          active
+                            ? 'bg-[#171717] text-white dark:bg-[#F5F5F5] dark:text-[#121313]'
+                            : 'bg-[#F6F8F6] text-[#737373] hover:text-[#171717] dark:bg-[#191A1B] dark:text-[#A3A3A3] dark:hover:text-white',
+                        )}
+                      >
+                        {tab.label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div
+                  className="max-h-[520px] space-y-3 overflow-y-auto pr-2"
+                  onScroll={(event) => {
+                    const target = event.currentTarget;
+                    const reachedBottom =
+                      target.scrollTop + target.clientHeight >= target.scrollHeight - 24;
+
+                    if (reachedBottom && visibleTaskCount < filteredTasks.length) {
+                      setVisibleTaskCount((current) => Math.min(current + 4, filteredTasks.length));
+                    }
+                  }}
+                >
+                  {filteredTasks.length === 0 ? (
+                    <div className="rounded-[24px] border border-dashed border-[#D8DDD8] bg-[#FBFCFB] px-5 py-8 text-center dark:border-[#2A2C2D] dark:bg-[#171819]">
+                      <p className="text-sm font-semibold text-[#171717] dark:text-white">Nenhuma tarefa neste filtro</p>
+                      <p className="mt-1 text-sm text-[#737373] dark:text-[#A3A3A3]">
+                        Ajuste o filtro para revisar outras tarefas.
+                      </p>
+                    </div>
+                  ) : (
+                    filteredTasks.slice(0, visibleTaskCount).map((task) => (
+                      <OverviewTaskListItem
+                        key={task.id}
+                        task={task}
+                        onOpen={(selectedTask) => openBoardInNewTab(selectedTask.boardId, selectedTask.id)}
+                      />
+                    ))
+                  )}
+                </div>
+              </SectionCard>
+
+              <SectionCard title="Avisos" subtitle="Itens que exigem atencao imediata">
+                <div className="mb-4 flex items-center justify-between rounded-[20px] bg-[#F6F8F6] px-4 py-3 dark:bg-[#171819]">
+                  <p className="text-sm font-medium text-[#525252] dark:text-[#D4D4D4]">Alertas ativos</p>
+                  <span className="inline-flex h-8 min-w-8 items-center justify-center rounded-full bg-[#171717] px-2 text-xs font-semibold text-white dark:bg-white dark:text-[#121313]">
+                    {overview.alertRows.length}
                   </span>
+                </div>
+
+                <div className="space-y-3">
+                  {overview.alertRows.length === 0 ? (
+                    <div className="rounded-[24px] border border-dashed border-[#D8DDD8] bg-[#FBFCFB] px-5 py-8 text-center dark:border-[#2A2C2D] dark:bg-[#171819]">
+                      <p className="text-sm font-semibold text-[#171717] dark:text-white">Nenhum aviso critico</p>
+                      <p className="mt-1 text-sm text-[#737373] dark:text-[#A3A3A3]">
+                        Seus prazos estao controlados neste momento.
+                      </p>
+                    </div>
+                  ) : (
+                    overview.alertRows.map((alert) => {
+                      const Icon = ALERT_ICON[alert.tone];
+                      return (
+                        <div
+                          key={alert.id}
+                          className={cn(
+                            'group rounded-[22px] border px-4 py-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_14px_30px_-24px_rgba(23,23,23,0.22)] dark:hover:shadow-[0_18px_36px_-28px_rgba(0,0,0,0.5)]',
+                            alert.tone === 'danger'
+                              ? 'border-[#F6CDCD] bg-[#FFF7F7] hover:border-[#F0B8B8] hover:bg-[#FFF9F9] dark:border-[#4B2225] dark:bg-[#1D1213] dark:hover:border-[#6A2D31] dark:hover:bg-[#221415]'
+                              : 'border-[#F4E4B3] bg-[#FFFDF3] hover:border-[#E7CF89] hover:bg-[#FFFEF8] dark:border-[#5A4520] dark:bg-[#1C1810] dark:hover:border-[#7A602B] dark:hover:bg-[#211B11]',
+                          )}
+                        >
+                          <div className="flex items-start gap-3">
+                            <span
+                              className={cn(
+                                'inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl',
+                                alert.tone === 'danger'
+                                  ? 'bg-[#FEF0F0] text-[#dc2626] dark:bg-[#291516] dark:text-[#fca5a5]'
+                                  : 'bg-[#FFF8E5] text-[#b45309] dark:bg-[#241b0c] dark:text-[#fcd34d]',
+                              )}
+                            >
+                              <Icon className="h-4.5 w-4.5" />
+                            </span>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-semibold text-[#171717] dark:text-white">{alert.title}</p>
+                              <p className="mt-1 text-sm text-[#737373] dark:text-[#A3A3A3]">{alert.description}</p>
+                              <p className="mt-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#8A8A8A] dark:text-[#A3A3A3]">
+                                {alert.priorityLabel}
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => openBoardInNewTab(alert.boardId, alert.taskId)}
+                              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#E5E7E4] text-[#525252] transition-colors group-hover:bg-white group-hover:text-[#171717] dark:border-[#2D2F30] dark:text-[#D4D4D4] dark:group-hover:bg-[#171819] dark:group-hover:text-white"
+                              aria-label="Ver tarefa"
+                            >
+                              <ArrowRight className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </SectionCard>
+            </div>
+
+            <div className="space-y-5">
+              <section
+                ref={notificationsSectionRef}
+                className="rounded-[28px] border border-[#E5E7E4] bg-white p-5 dark:border-[#232425] dark:bg-[#121313]"
+              >
+                <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-center gap-3">
+                    <h2 className="text-[20px] font-bold tracking-[-0.03em] text-[#171717] dark:text-white">
+                      Notificacoes
+                    </h2>
+                    {unreadNotificationCount > 0 ? (
+                      <span className="inline-flex h-8 min-w-8 items-center justify-center rounded-full bg-[#f32c2c] px-2 text-xs font-semibold text-white">
+                        {unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}
+                      </span>
+                    ) : null}
+                  </div>
+
+                  {unreadNotificationCount > 0 ? (
+                    <button
+                      type="button"
+                      onClick={onMarkAllNotificationsRead}
+                      className="inline-flex items-center gap-2 text-sm font-semibold text-[#525252] transition-colors hover:text-[#171717] dark:text-[#A3A3A3] dark:hover:text-white"
+                    >
+                      Ler todas
+                      <ArrowRight className="h-4 w-4" />
+                    </button>
+                  ) : null}
+                </div>
+
+                {notifications.length === 0 ? (
+                  <div className="rounded-[24px] border border-dashed border-[#D8DDD8] bg-[#FBFCFB] px-5 py-8 text-center dark:border-[#2A2C2D] dark:bg-[#171819]">
+                    <p className="text-sm font-semibold text-[#171717] dark:text-white">Nenhuma notificacao por aqui</p>
+                    <p className="mt-1 text-sm text-[#737373] dark:text-[#A3A3A3]">
+                      Quando houver novas atividades, elas aparecem aqui.
+                    </p>
+                  </div>
+                ) : (
+                  <div
+                    className="max-h-[760px] space-y-3 overflow-y-auto pr-2"
+                    onScroll={(event) => {
+                      const target = event.currentTarget;
+                      const reachedBottom =
+                        target.scrollTop + target.clientHeight >= target.scrollHeight - 24;
+
+                      if (reachedBottom && visibleNotificationCount < notifications.length) {
+                        setVisibleNotificationCount((current) =>
+                          Math.min(current + 5, notifications.length),
+                        );
+                      }
+                    }}
+                  >
+                    {visibleNotifications.map((notification) => (
+                      <NotificationCard
+                        key={notification.id}
+                        notification={notification}
+                        onClick={() => onOpenNotification(notification)}
+                        className="hover:-translate-y-0.5"
+                      />
+                    ))}
+                  </div>
+                )}
+              </section>
+
+              <SectionCard
+                title="Seus boards"
+                subtitle="Acesso rapido aos seus workspaces"
+                actionLabel="Ver todos"
+                onAction={() => openBoardInNewTab()}
+              >
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                  {overview.boardRows.map((board) => (
+                    <button
+                      key={board.id}
+                      type="button"
+                      onClick={() => openBoardInNewTab(board.id)}
+                      className="group rounded-[24px] border border-[#E5E7E4] bg-[#FBFCFB] p-4 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-[#D5DBD5] hover:bg-white hover:shadow-[0_14px_30px_-24px_rgba(23,23,23,0.28)] dark:border-[#232425] dark:bg-[#171819] dark:hover:border-[#343638] dark:hover:bg-[#1B1D1E] dark:hover:shadow-[0_18px_36px_-28px_rgba(0,0,0,0.55)]"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-[#FFF1EA] text-[#ff5623] dark:bg-[#26150f] dark:text-[#ffb39c]">
+                          <FolderKanban className="h-5 w-5" />
+                        </span>
+                        <ExternalLink className="h-4 w-4 text-[#A3A3A3] transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                      </div>
+                      <p className="mt-4 text-[15px] font-semibold text-[#171717] dark:text-white">{board.name}</p>
+                      <p className="mt-1 line-clamp-2 text-sm text-[#737373] dark:text-[#A3A3A3]">
+                        {board.description || 'Board operacional do workspace'}
+                      </p>
+                      <div className="mt-4 flex items-center gap-3 text-xs font-semibold text-[#737373] dark:text-[#A3A3A3]">
+                        <span>{board.activeTasks} tarefas ativas</span>
+                        <span>{board.overdueTasks} atrasadas</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </SectionCard>
+            </div>
+          </div>
+
+          <SectionCard
+            title="Biblioteca de clientes"
+            subtitle="Acesso rapido a recursos por cliente"
+            actionLabel="Cadastrar biblioteca"
+            onAction={() => setShowClientLibrarySelector(true)}
+          >
+            <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+              {visibleClientLibraries.map((client) => (
+                <button
+                  key={client.id}
+                  type="button"
+                  onClick={() => setSelectedClientId(client.id)}
+                  className="group rounded-[24px] border border-[#E5E7E4] bg-[#FBFCFB] p-5 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-[#D5DBD5] hover:bg-white hover:shadow-[0_14px_30px_-24px_rgba(23,23,23,0.28)] dark:border-[#232425] dark:bg-[#171819] dark:hover:border-[#343638] dark:hover:bg-[#1B1D1E] dark:hover:shadow-[0_18px_36px_-28px_rgba(0,0,0,0.55)]"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#FFF1EA] text-sm font-bold text-[#ff5623] dark:bg-[#26150f] dark:text-[#ffb39c]">
+                      {client.name
+                        .split(' ')
+                        .map((part) => part[0])
+                        .join('')
+                        .slice(0, 2)
+                        .toUpperCase()}
+                    </div>
+                    <p className="min-w-0 text-[15px] font-semibold text-[#171717] transition-colors group-hover:text-[#ff5623] dark:text-white dark:group-hover:text-[#ff8c69]">
+                      {client.name}
+                    </p>
+                  </div>
                 </button>
               ))}
             </div>
           </SectionCard>
         </div>
-
-        <SectionCard
-          title="Biblioteca de clientes"
-          subtitle="Acesso rápido a recursos por cliente"
-          actionLabel="Cadastrar biblioteca"
-          onAction={() => setShowClientLibrarySelector(true)}
-        >
-          <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-            {visibleClientLibraries.map((client) => (
-              <button
-                key={client.id}
-                type="button"
-                onClick={() => setSelectedClientId(client.id)}
-                className="group rounded-[24px] border border-[#E5E7E4] bg-[#FBFCFB] p-5 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-[#D5DBD5] hover:bg-white hover:shadow-[0_14px_30px_-24px_rgba(23,23,23,0.28)] dark:border-[#232425] dark:bg-[#171819] dark:hover:border-[#343638] dark:hover:bg-[#1B1D1E] dark:hover:shadow-[0_18px_36px_-28px_rgba(0,0,0,0.55)]"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#FFF1EA] text-sm font-bold text-[#ff5623] dark:bg-[#26150f] dark:text-[#ffb39c]">
-                    {client.name
-                      .split(' ')
-                      .map((part) => part[0])
-                      .join('')
-                      .slice(0, 2)
-                      .toUpperCase()}
-                  </div>
-                  <p className="min-w-0 text-[15px] font-semibold text-[#171717] transition-colors group-hover:text-[#ff5623] dark:text-white dark:group-hover:text-[#ff8c69]">
-                    {client.name}
-                  </p>
-                </div>
-              </button>
-            ))}
-          </div>
-        </SectionCard>
       </div>
-    </div>
+
       <ClientLibraryModal
         isOpen={!!selectedClientId}
         clientId={selectedClientId}
         onClose={() => setSelectedClientId(null)}
         onSaved={() => setClientLibraryVersion((current) => current + 1)}
       />
+
       {showClientLibrarySelector ? (
         <div className="fixed inset-0 z-[90] flex items-center justify-center p-4">
           <div
@@ -456,7 +523,7 @@ export function OverviewDashboardPage({
                 Cadastrar biblioteca
               </h3>
               <p className="mt-1 text-sm text-[#737373] dark:text-[#A3A3A3]">
-                Escolha um cliente para criar ou editar a biblioteca de links úteis.
+                Escolha um cliente para criar ou editar a biblioteca de links uteis.
               </p>
             </div>
 
