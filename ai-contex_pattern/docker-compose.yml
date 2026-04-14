@@ -1,0 +1,14 @@
+services:
+  web-ds:
+    image: ${REGISTRY:-ghcr.io/joao-19}/weplanner-ds:${TAG:-latest}
+    container_name: weplanner-ds
+    ports:
+      - "${PORT_DS:-3012}:80"
+    restart: always
+    networks:
+      - weplanner-network
+
+networks:
+  weplanner-network:
+    external: true
+    name: ${NETWORK_NAME:-weplanner_network}
