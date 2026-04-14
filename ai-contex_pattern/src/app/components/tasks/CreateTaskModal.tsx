@@ -10,13 +10,16 @@ import {
   FileText,
   FileType,
   Image,
+  ImagePlus,
   Italic,
   Paperclip,
   Plus,
   Search,
   Sparkles,
   Tag,
+  Trash2,
   Type,
+  Upload,
   UserPlus,
   Users,
   X,
@@ -71,6 +74,8 @@ export interface CreateTaskSubmitData {
   tags: TagItem[];
   subtasks: TaskFormSubtask[];
   attachments: TaskFormAttachment[];
+  /** Data URL da imagem de capa — null quando sem capa */
+  coverImage: string | null;
 }
 
 export interface CreateTaskInitialData extends Partial<CreateTaskSubmitData> {}
@@ -190,6 +195,10 @@ export function CreateTaskModal({
   const [subtasks, setSubtasks] = useState<TaskFormSubtask[]>([]);
   const [subtaskInput, setSubtaskInput] = useState('');
   const [attachments, setAttachments] = useState<TaskFormAttachment[]>([]);
+  const [coverImage, setCoverImage] = useState<string | null>(null);
+  const coverImageInputRef = useRef<HTMLInputElement>(null);
+  const [showCoverDropdown, setShowCoverDropdown] = useState(false);
+  const [showInlineCoverDropdown, setShowInlineCoverDropdown] = useState(false);
   const [subtaskAssigneeTargetId, setSubtaskAssigneeTargetId] = useState<string | null>(null);
   const [subtaskDateTargetId, setSubtaskDateTargetId] = useState<string | null>(null);
   const [subtaskAssigneeSearch, setSubtaskAssigneeSearch] = useState('');
@@ -198,6 +207,15 @@ export function CreateTaskModal({
     () => availableColumns.find((column) => column.id === selectedColumnId) || null,
     [availableColumns, selectedColumnId],
   );
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -221,6 +239,7 @@ export function CreateTaskModal({
     setSubtasks(initialTask?.subtasks ?? []);
     setSubtasksEnabled(Boolean(initialTask?.subtasks?.length));
     setAttachments(initialTask?.attachments ?? []);
+    setCoverImage(initialTask?.coverImage ?? null);
     setColumnSearch('');
     setClientSearch('');
     setAssigneeSearch('');
@@ -302,6 +321,18 @@ export function CreateTaskModal({
     }, 1200);
   };
 
+  const handleCoverImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setCoverImage(e.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+    // Reset input so same file can be re-selected
+    event.target.value = '';
+  };
+
   const handleSubmit = () => {
     const title = titleInputRef.current?.value.trim() ?? '';
     const rawDescription = descRef.current?.innerHTML ?? '';
@@ -322,6 +353,7 @@ export function CreateTaskModal({
       tags,
       subtasks: subtasksEnabled ? subtasks.filter((subtask) => subtask.title.trim()) : [],
       attachments,
+      coverImage,
     });
 
     onClose();
@@ -341,9 +373,64 @@ export function CreateTaskModal({
               {mode === 'edit' ? 'Editar tarefa' : 'Nova tarefa'}
             </h2>
           </div>
-          <button onClick={onClose} className="rounded-lg p-1.5 transition-colors hover:bg-[#f5f5f5] dark:hover:bg-[#2a2a2a]">
-            <X className="h-4 w-4 text-[#a3a3a3]" />
-          </button>
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <button 
+                type="button"
+                onClick={() => setShowCoverDropdown(!showCoverDropdown)} 
+                className="flex items-center gap-1.5 rounded-lg border border-[#e5e5e5] bg-white px-3 py-1.5 text-xs font-semibold text-[#525252] transition-colors hover:bg-[#fafafa] dark:border-[#2a2a2a] dark:bg-[#1e1e1e] dark:text-[#a3a3a3] dark:hover:bg-[#232325]"
+              >
+                <ImagePlus className="h-4 w-4" />
+                Capa
+              </button>
+              {showCoverDropdown && (
+                <div className="absolute right-0 top-full mt-2 w-56 z-[200] rounded-xl border border-[#e5e5e5] bg-white p-2 shadow-xl dark:border-[#2a2a2a] dark:bg-[#1e1e1e]">
+                  <button 
+                    type="button"
+                    onClick={() => { coverImageInputRef.current?.click(); setShowCoverDropdown(false); }}
+                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-[#f5f5f5] dark:hover:bg-[#232325]"
+                  >
+                    <Upload className="h-4 w-4" />
+                    Enviar do computador
+                  </button>
+                  {coverImage && (
+                    <button 
+                      type="button"
+                      onClick={() => { setCoverImage(null); setShowCoverDropdown(false); }}
+                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-[#f32c2c] hover:bg-[#fee2e2] dark:hover:bg-[#311514]"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      Remover capa atual
+                    </button>
+                  )}
+                  {attachments.filter(a => a.type === 'image').length > 0 && (
+                    <>
+                      <div className="my-1 h-px bg-[#e5e5e5] dark:bg-[#2a2a2a]" />
+                      <p className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-[#a3a3a3]">Dos anexos</p>
+                      {attachments.filter(a => a.type === 'image').map(a => (
+                        <button 
+                          key={a.id}
+                          type="button"
+                          onClick={() => {
+                            setCoverImage('/src/assets/task-cover-demo.png');
+                            setShowCoverDropdown(false);
+                          }}
+                          className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-[#f5f5f5] dark:hover:bg-[#232325]"
+                        >
+                          <Image className="h-4 w-4" />
+                          <span className="truncate">{a.name}</span>
+                        </button>
+                      ))}
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+            
+            <button onClick={onClose} className="rounded-lg p-1.5 transition-colors hover:bg-[#f5f5f5] dark:hover:bg-[#2a2a2a]">
+              <X className="h-4 w-4 text-[#a3a3a3]" />
+            </button>
+          </div>
         </div>
 
         <div
@@ -357,8 +444,77 @@ export function CreateTaskModal({
             setShowAssigneeDropdown(false);
             setSubtaskAssigneeTargetId(null);
             setSubtaskDateTargetId(null);
+            setShowCoverDropdown(false);
+            setShowInlineCoverDropdown(false);
           }}
         >
+          {/* ── Foto de Capa Preview ── */}
+          {coverImage && (
+            <div>
+              <div className="group relative h-36 w-full rounded-xl border border-[#e5e5e5] dark:border-[#2a2a2a]">
+                <img src={coverImage} alt="Capa da tarefa" className="h-full w-full object-cover rounded-xl" />
+              <div className={`absolute inset-0 flex items-center justify-center gap-2 bg-black/40 rounded-xl transition-opacity ${showInlineCoverDropdown ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); setShowInlineCoverDropdown(!showInlineCoverDropdown); }}
+                    className="flex items-center gap-1.5 rounded-lg bg-white/90 px-3 py-1.5 text-[11px] font-semibold text-[#171717] shadow transition-all hover:bg-white"
+                  >
+                    <Image className="h-3.5 w-3.5" /> Trocar
+                  </button>
+                  {showInlineCoverDropdown && (
+                    <div className="absolute left-1/2 top-full mt-2 w-56 -translate-x-1/2 z-[200] rounded-xl border border-[#e5e5e5] bg-white p-2 shadow-xl dark:border-[#2a2a2a] dark:bg-[#1e1e1e]" onClick={(e) => e.stopPropagation()}>
+                      <button 
+                        type="button"
+                        onClick={() => { coverImageInputRef.current?.click(); setShowInlineCoverDropdown(false); }}
+                        className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-[13px] hover:bg-[#f5f5f5] dark:hover:bg-[#232325]"
+                      >
+                        <Upload className="h-4 w-4" />
+                        Enviar do computador
+                      </button>
+                      {attachments.filter(a => a.type === 'image' || a.name.endsWith('.jpg') || a.name.endsWith('.png')).length > 0 && (
+                        <>
+                          <div className="my-1 h-px bg-[#e5e5e5] dark:bg-[#2a2a2a]" />
+                          <p className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-[#a3a3a3]">Dos anexos</p>
+                          {attachments.filter(a => a.type === 'image' || a.name.endsWith('.jpg') || a.name.endsWith('.png')).map(a => (
+                            <button 
+                              key={a.id}
+                              type="button"
+                              onClick={() => {
+                                setCoverImage('/src/assets/task-cover-demo.png');
+                                setShowInlineCoverDropdown(false);
+                              }}
+                              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-[13px] hover:bg-[#f5f5f5] dark:hover:bg-[#232325]"
+                            >
+                              <Image className="h-4 w-4" />
+                              <span className="truncate">{a.name}</span>
+                            </button>
+                          ))}
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { setCoverImage(null); setShowInlineCoverDropdown(false); setShowCoverDropdown(false); }}
+                  className="flex items-center gap-1.5 rounded-lg bg-[#f32c2c]/90 px-3 py-1.5 text-[11px] font-semibold text-white shadow transition-all hover:bg-[#f32c2c]"
+                >
+                  <Trash2 className="h-3.5 w-3.5" /> Remover
+                </button>
+              </div>
+              </div>
+            </div>
+          )}
+
+          <input
+            ref={coverImageInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleCoverImageChange}
+          />
+
           <div>
             <label className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-[#a3a3a3]">
               <Type className="h-3 w-3" /> Título
@@ -427,17 +583,6 @@ export function CreateTaskModal({
                   </div>
                 )}
               </div>
-              <div className="mx-1 h-4 w-px bg-[#e5e5e5] dark:bg-[#2a2a2a]" />
-              <button
-                onMouseDown={(event) => {
-                  event.preventDefault();
-                  addAttachment();
-                }}
-                className={`flex items-center gap-1 rounded-lg p-1.5 transition-colors ${attachments.length > 0 ? 'bg-[#ff5623]/10 text-[#ff5623]' : 'text-[#a3a3a3] hover:bg-[#e5e5e5] hover:text-[#ff5623] dark:hover:bg-[#2a2a2a]'}`}
-              >
-                <Paperclip className="h-3.5 w-3.5" />
-                <span className="text-[10px] font-semibold">Anexar{attachments.length > 0 ? ` (${attachments.length})` : ''}</span>
-              </button>
             </div>
             <div
               ref={descRef}
@@ -447,28 +592,6 @@ export function CreateTaskModal({
               className="min-h-[120px] rounded-b-xl border border-[#e5e5e5] bg-[#fafafa] px-4 py-3 text-sm text-[#171717] transition-all empty:before:pointer-events-none empty:before:text-[#d4d4d4] empty:before:content-[attr(data-placeholder)] focus:border-[#ff5623] focus:outline-none focus:ring-2 focus:ring-[#ff5623]/20 dark:border-[#2a2a2a] dark:bg-[#1e1e1e] dark:text-[#f5f5f5] dark:empty:before:text-[#525252]"
               style={{ fontSize }}
             />
-            {attachments.length > 0 && (
-              <div className="mt-2 flex flex-col gap-1.5">
-                {attachments.map((file) => {
-                  const fileColor = getFileColor(file.type);
-                  const Icon = getFileIcon(file.type);
-                  return (
-                    <div key={file.id} className="group flex items-center gap-2.5 rounded-xl border border-[#e5e5e5] bg-[#fafafa] px-3 py-2 dark:border-[#2a2a2a] dark:bg-[#1e1e1e]">
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" style={{ backgroundColor: `${fileColor}20` }}>
-                        <Icon className="h-4 w-4" style={{ color: fileColor }} />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-[12px] font-semibold text-[#171717] dark:text-[#f5f5f5]">{file.name}</p>
-                        <p className="text-[10px] text-[#a3a3a3]">{file.size}</p>
-                      </div>
-                      <button onClick={() => setAttachments((prev) => prev.filter((attachment) => attachment.id !== file.id))} className="rounded-lg p-1 opacity-0 transition-all hover:bg-[#f32c2c]/10 hover:text-[#f32c2c] group-hover:opacity-100">
-                        <X className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
           </div>
 
           <div>
@@ -643,6 +766,75 @@ export function CreateTaskModal({
                     {subtasks.filter((subtask) => subtask.done).length}/{subtasks.length} concluídas
                   </p>
                 )}
+              </div>
+            )}
+          </div>
+
+          {/* ── Anexos ── */}
+          <div>
+            <div className="mb-2 flex items-center justify-between">
+              <label className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-[#a3a3a3]">
+                <Paperclip className="h-3 w-3" /> Anexos
+              </label>
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#f5f5f5] text-[10px] font-bold text-[#737373] dark:bg-[#2a2a2a] dark:text-[#a3a3a3]">
+                {attachments.length}
+              </span>
+            </div>
+
+            <div 
+              className="mb-3 flex flex-col items-center justify-center rounded-xl border border-dashed border-[#d4d4d4] bg-[#fafafa]/50 p-6 transition-colors hover:border-[#ff5623]/50 hover:bg-[#fff8f6] dark:border-[#2a2a2a] dark:bg-[#1e1e1e]/50 cursor-pointer"
+              onClick={() => {
+                // Mock upload addition logic
+                const newAttachment = {
+                   id: Math.random().toString(),
+                   name: 'novo_arquivo_selecionado.jpg',
+                   type: 'image' as const,
+                   size: '1.2 MB'
+                };
+                setAttachments(prev => [...prev, newAttachment]);
+              }}
+            >
+              <Upload className="mb-2 h-5 w-5 text-[#737373] dark:text-[#a3a3a3]" />
+              <p className="text-sm font-semibold text-[#171717] dark:text-[#f5f5f5]">Clique ou arraste arquivos para anexar</p>
+              <p className="mt-1 text-[11px] text-[#a3a3a3]">Até 25.0 MB por arquivo</p>
+            </div>
+
+            {attachments.length > 0 && (
+              <div className="space-y-2">
+                {attachments.map((file) => (
+                  <div key={file.id} className="flex items-center justify-between rounded-xl border border-[#e5e5e5] bg-white p-2.5 shadow-sm transition-all hover:shadow-md dark:border-[#2a2a2a] dark:bg-[#1a1a1a]">
+                    <div className="flex items-center gap-3 overflow-hidden">
+                      {file.type === 'image' || file.name.endsWith('.jpg') || file.name.endsWith('.png') ? (
+                        <div className="h-10 w-12 shrink-0 overflow-hidden rounded-lg bg-[#f5f5f5] dark:bg-[#2a2a2a]">
+                          <img src="/src/assets/task-cover-demo.png" alt={file.name} className="h-full w-full object-cover" />
+                        </div>
+                      ) : (
+                        <div className="flex h-10 w-12 shrink-0 items-center justify-center rounded-lg bg-[#f5f5f5] dark:bg-[#2a2a2a]">
+                          <FileType className="h-5 w-5 text-[#a3a3a3]" />
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-[#171717] dark:text-[#f5f5f5]">{file.name}</p>
+                        <p className="text-[11px] text-[#a3a3a3]">{file.size}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 pl-2">
+                      <button type="button" className="rounded-lg p-1.5 text-[#737373] transition-colors hover:bg-[#f5f5f5] hover:text-[#171717] dark:text-[#a3a3a3] dark:hover:bg-[#2a2a2a] dark:hover:text-[#f5f5f5]">
+                        <Upload className="h-4 w-4 rotate-180" />
+                      </button>
+                      <button 
+                        type="button"
+                        onClick={() => setAttachments(prev => prev.filter(a => a.id !== file.id))}
+                        className="rounded-lg p-1.5 text-[#737373] transition-colors hover:bg-[#fee2e2] hover:text-[#f32c2c] dark:text-[#a3a3a3] dark:hover:bg-[#311514] dark:hover:text-[#f32c2c]"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                      <button type="button" className="rounded-lg p-1.5 text-[#737373] transition-colors hover:bg-[#f5f5f5] hover:text-[#171717] dark:text-[#a3a3a3] dark:hover:bg-[#2a2a2a] dark:hover:text-[#f5f5f5]">
+                        <ChevronDown className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>

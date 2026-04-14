@@ -17,6 +17,8 @@ export interface CalendarBoardTask {
   columnAccentColor: string;
   assignees: Array<{ name: string; image?: string }>;
   clientName?: string | null;
+  /** URL da imagem de capa da tarefa — opcional */
+  coverImage?: string | null;
 }
 
 interface BoardCalendarViewProps {
@@ -407,8 +409,12 @@ export function BoardCalendarView({
                 </div>
               ) : (
                 visibleTaskList.map((task) => {
+                  // Mostra até 2 nomes + contador de excedentes
+                  const MAX_VISIBLE_ASSIGNEES = 2;
+                  const visibleAssignees = task.assignees.slice(0, MAX_VISIBLE_ASSIGNEES);
+                  const extraCount = task.assignees.length - MAX_VISIBLE_ASSIGNEES;
                   const assigneeLabel = task.assignees.length
-                    ? task.assignees.map((assignee) => assignee.name).join(', ')
+                    ? visibleAssignees.map((a) => a.name).join(', ')
                     : 'Sem responsáveis';
 
                   return (
@@ -416,38 +422,64 @@ export function BoardCalendarView({
                       key={task.id}
                       type="button"
                       onClick={() => onOpenTask(task.id)}
-                      className="w-full rounded-[24px] border border-[#EAEDEA] bg-[#FCFDFC] px-4 py-4 text-left transition-colors hover:border-[#ff5623]/40 hover:bg-[#FFF9F6] dark:border-[#232425] dark:bg-[#171819] dark:hover:border-[#ff5623]/40 dark:hover:bg-[#1C1715]"
+                      className="group w-full rounded-[20px] border border-[#EAEDEA] bg-white p-3 text-left transition-all hover:border-[#ff5623]/35 hover:shadow-[0_8px_24px_-12px_rgba(255,86,35,0.18)] dark:border-[#232425] dark:bg-[#171819] dark:hover:border-[#ff5623]/35"
                     >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold text-[#171717] dark:text-white">
+                      {/* Linha principal: capa + info */}
+                      <div className="flex items-start gap-3">
+                        {/* Imagem de capa — só renderiza se existir */}
+                        {task.coverImage ? (
+                          <div className="h-[68px] w-[68px] shrink-0 overflow-hidden rounded-[12px] border border-[#F0F0F0] dark:border-[#2A2C2D]">
+                            <img
+                              src={task.coverImage}
+                              alt="Capa da tarefa"
+                              className="h-full w-full object-cover"
+                            />
+                          </div>
+                        ) : null}
+
+                        {/* Conteúdo textual */}
+                        <div className="min-w-0 flex-1">
+                          <p className="line-clamp-2 text-sm font-semibold leading-snug text-[#171717] dark:text-white">
                             {task.title}
                           </p>
-                          <p className="mt-1 text-xs text-[#737373] dark:text-[#A3A3A3]">
-                            {task.clientName || task.columnName}
-                          </p>
+
+                          {(task.clientName || task.columnName) ? (
+                            <p className="mt-1 truncate text-xs text-[#737373] dark:text-[#A3A3A3]">
+                              {task.clientName || task.columnName}
+                            </p>
+                          ) : null}
+
+                          {/* Data + badge de status na mesma linha */}
+                          <div className="mt-2 flex items-center gap-2">
+                            <span className="inline-flex items-center gap-1 text-[11px] text-[#737373] dark:text-[#A3A3A3]">
+                              <Clock className="h-3 w-3" />
+                              {formatTaskDueDate(task.dueDate)}
+                            </span>
+                            <span
+                              className="rounded-full px-2 py-0.5 text-[11px] font-medium"
+                              style={{
+                                backgroundColor: withAlpha(task.columnAccentColor, '18') ?? '#FFF4EE',
+                                color: task.columnAccentColor,
+                              }}
+                            >
+                              {task.columnName}
+                            </span>
+                          </div>
                         </div>
-                        <span
-                          className="rounded-full px-2 py-1 text-[11px] font-medium"
-                          style={{
-                            backgroundColor: withAlpha(task.columnAccentColor, '16') ?? '#FFF4EE',
-                            color: task.columnAccentColor,
-                          }}
-                        >
-                          {task.columnName}
-                        </span>
                       </div>
 
-                      <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-[#525252] dark:text-[#C6C7C8]">
-                        <span className="inline-flex items-center gap-1">
-                          <Clock className="h-3.5 w-3.5" />
-                          {formatTaskDueDate(task.dueDate)}
-                        </span>
-                        <span className="inline-flex items-center gap-1">
-                          <Users className="h-3.5 w-3.5" />
-                          {assigneeLabel}
-                        </span>
-                      </div>
+                      {/* Responsáveis — separados por linha */}
+                      {task.assignees.length > 0 ? (
+                        <div className="mt-3 flex items-center gap-1.5 border-t border-[#F3F4F3] pt-3 dark:border-[#232425]">
+                          <Users className="h-3.5 w-3.5 shrink-0 text-[#A3A3A3]" />
+                          <span className="text-[11px] text-[#525252] dark:text-[#C6C7C8]">
+                            {assigneeLabel}
+                            {extraCount > 0 ? (
+                              <span className="ml-1 font-semibold text-[#737373]">+{extraCount}</span>
+                            ) : null}
+                          </span>
+                        </div>
+                      ) : null}
                     </button>
                   );
                 })

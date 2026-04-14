@@ -30,6 +30,7 @@ interface TaskCardProps {
   attachmentsCount?: number;
   priority?: 'low' | 'medium' | 'high';
   credits?: number;
+  coverImage?: string | null;
   onClick?: () => void;
   actions?: React.ReactNode;
   hideDescription?: boolean;
@@ -48,6 +49,7 @@ export function TaskCard({
   attachmentsCount = 0,
   priority = 'medium',
   credits,
+  coverImage,
   onClick,
   actions,
   hideDescription = false,
@@ -62,6 +64,8 @@ export function TaskCard({
   const getInitials = (name: string) => {
     return name
       .split(' ')
+    return name
+      .split(' ')
       .map(n => n[0])
       .join('')
       .toUpperCase()
@@ -70,7 +74,7 @@ export function TaskCard({
 
   return (
     <div
-      className="group bg-white border border-[#e5e5e5] rounded-2xl p-4 hover:border-[#d4d4d4] hover:shadow-md transition-all duration-200 cursor-pointer"
+      className="group bg-white border border-[#e5e5e5] rounded-[26px] p-4 hover:border-[#d4d4d4] hover:shadow-md transition-all duration-300 cursor-pointer animate-kanban-card"
       onClick={onClick}
     >
       {/* Header */}

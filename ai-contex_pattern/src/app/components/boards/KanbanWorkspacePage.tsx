@@ -160,6 +160,8 @@ interface BoardCard {
   subtasks?: { completed: number; total: number };
   subtasksList?: TaskFormSubtask[];
   client?: { name: string; image?: string };
+  /** URL da imagem de capa - opcional, usada na aba lateral do calendario */
+  coverImage?: string | null;
   totalTimeInProgress?: number;
   totalTimeInReview?: number;
   totalTimeInAdjustments?: number;
@@ -580,6 +582,7 @@ const INITIAL_CARDS: BoardCard[] = [
     comments: 14,
     subtasks: { completed: 10, total: 10 },
     client: { name: 'WePlanner' },
+    coverImage: '/src/assets/task-cover-demo.png',
   },
   {
     id: 'todo-3',
@@ -1230,10 +1233,14 @@ export function KanbanWorkspacePage({
 
   const openEditTaskModal = (card: BoardCard) => {
     setSelectedCard(null);
-    setEditingTaskId(card.id);
-    setCreateTaskStartColumnId(card.columnId);
-    setCreateTaskPrefill(null);
-    setCreateTaskModalOpen(true);
+    // Aguarda um frame para garantir que o TaskDetailModal desmonte
+    // e libere o overflow do body antes de o CreateTaskModal montar
+    window.requestAnimationFrame(() => {
+      setEditingTaskId(card.id);
+      setCreateTaskStartColumnId(card.columnId);
+      setCreateTaskPrefill(null);
+      setCreateTaskModalOpen(true);
+    });
   };
 
   const openCreateColumnDialog = () => {
@@ -1622,6 +1629,7 @@ export function KanbanWorkspacePage({
             columnAccentColor: column?.accentColor || '#ff5623',
             assignees: card.assignees,
             clientName: card.client?.name || null,
+            coverImage: card.coverImage || null,
           };
         })
         .sort(
@@ -1802,6 +1810,7 @@ export function KanbanWorkspacePage({
       subtasks: subtaskSummary,
       subtasksList: payload.subtasks,
       client: payload.client ? { name: payload.client } : undefined,
+      coverImage: payload.coverImage || null,
     });
 
     applyCardsUpdate((current) => {
@@ -2570,6 +2579,7 @@ export function KanbanWorkspacePage({
         clientId: selectedCard.clientId,
         createdAt: formatTaskCreatedAt(selectedCard.createdAt),
         activityLog: selectedCard.activityLog ?? [],
+        coverImage: selectedCard.coverImage ?? null,
       }
     : null;
 
@@ -2618,6 +2628,7 @@ export function KanbanWorkspacePage({
         })),
         subtasks: editingTask.subtasksList ?? [],
         attachments: editingTask.attachmentsList ?? [],
+        coverImage: editingTask.coverImage ?? null,
       }
     : null;
   const createTaskInitialData = editingTaskInitialData ?? createTaskPrefill;
@@ -2747,6 +2758,7 @@ export function KanbanWorkspacePage({
             attachmentsCount={card.attachments}
             priority={card.priority === 'urgent' ? 'high' : card.priority}
             credits={card.credits}
+            coverImage={card.coverImage}
             actions={cardActions}
             hideDescription
             showCompleteButton
@@ -2779,6 +2791,7 @@ export function KanbanWorkspacePage({
         comments={card.comments}
         credits={card.credits}
         client={card.client}
+        coverImage={card.coverImage}
         actions={cardActions}
         onClick={handleOpenCard}
         onToggleComplete={() => toggleCardComplete(card.id)}
@@ -3677,7 +3690,7 @@ export function KanbanWorkspacePage({
                     const column = getColumnById(currentBoardColumns, card.columnId);
                     const assigneeLabel = card.assignees.length
                       ? card.assignees.map((assignee) => assignee.name).join(', ')
-                      : 'Sem responsáveis';
+                      : 'Sem responsï¿½veis';
                     const cardDescription = getRichTextPlainText(card.description);
 
                     return (
@@ -3710,7 +3723,7 @@ export function KanbanWorkspacePage({
                               </span>
                             ) : card.dateAlert === 'approaching' ? (
                               <span className="inline-flex items-center rounded-full bg-[#FFF8E5] px-2.5 py-1 text-xs font-semibold text-[#b45309] dark:bg-[#241b0c] dark:text-[#fcd34d]">
-                                {'Prazo próximo'}
+                                {'Prazo prï¿½ximo'}
                               </span>
                             ) : null}
                           </div>
