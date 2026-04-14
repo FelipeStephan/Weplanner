@@ -47,6 +47,7 @@ interface AppShellSidebarProps {
   userRole?: 'client' | 'manager' | 'collaborator';
   userTitle?: string;
   onUserClick?: (event: ReactMouseEvent<HTMLDivElement>) => void;
+  notificationCount?: number;
 }
 
 const SIDEBAR_ITEMS: Array<{
@@ -90,6 +91,7 @@ export function AppShellSidebar({
   userRole = 'collaborator',
   userTitle,
   onUserClick,
+  notificationCount = 0,
 }: AppShellSidebarProps) {
   const [isBoardsExpanded, setIsBoardsExpanded] = useState(true);
   const userRoleLabel =
@@ -205,14 +207,26 @@ export function AppShellSidebar({
                     <span className="relative flex shrink-0">
                       <item.icon className="h-4 w-4 shrink-0" />
                       {collapsed && item.key === 'overview-dashboard' && (
-                        <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full border-2 border-white bg-[#f32c2c] dark:border-[#121313]" />
+                        <>
+                          {notificationCount > 0 ? (
+                            <span className="absolute -right-2 -top-2 inline-flex min-w-[18px] items-center justify-center rounded-full border-2 border-white bg-[#f32c2c] px-1 text-[10px] font-bold leading-4 text-white dark:border-[#121313]">
+                              {notificationCount > 9 ? '9+' : notificationCount}
+                            </span>
+                          ) : null}
+                        </>
                       )}
                     </span>
                     {!collapsed && (
                       <span className="flex min-w-0 flex-1 items-center gap-2">
                         <span>{item.label}</span>
                         {item.key === 'overview-dashboard' && (
-                          <span className="h-2 w-2 rounded-full bg-[#f32c2c]" />
+                          <>
+                            {notificationCount > 0 ? (
+                              <span className="inline-flex min-w-[22px] items-center justify-center rounded-full bg-[#f32c2c] px-2 py-0.5 text-[11px] font-semibold text-white">
+                                {notificationCount > 99 ? '99+' : notificationCount}
+                              </span>
+                            ) : null}
+                          </>
                         )}
                         {item.key === 'kanban-workspace' && (
                           <button

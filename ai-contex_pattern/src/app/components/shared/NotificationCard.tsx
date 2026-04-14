@@ -19,44 +19,40 @@ export interface NotificationItem {
   taskTitle?: string;
   timestamp: string;
   isRead?: boolean;
+  boardId?: string;
+  taskId?: string;
 }
 
 const typeConfig = {
   mention: {
     icon: AtSign,
-    iconBg: 'bg-[#dbeafe] dark:bg-[#3b82f6]/20',
-    iconColor: 'text-[#2563eb] dark:text-[#60a5fa]',
-    accent: 'border-l-[#3b82f6]',
+    iconBg: 'bg-[#3b82f6] dark:bg-[#3b82f6]',
+    iconColor: 'text-white',
   },
   comment: {
     icon: MessageCircle,
-    iconBg: 'bg-[#f3e8ff] dark:bg-[#987dfe]/20',
-    iconColor: 'text-[#7e22ce] dark:text-[#c084fc]',
-    accent: 'border-l-[#987dfe]',
+    iconBg: 'bg-[#987dfe] dark:bg-[#987dfe]',
+    iconColor: 'text-white',
   },
   completed: {
     icon: CheckCircle2,
-    iconBg: 'bg-[#dcfce7] dark:bg-[#019364]/20',
-    iconColor: 'text-[#16a34a] dark:text-[#4ade80]',
-    accent: 'border-l-[#019364]',
+    iconBg: 'bg-[#019364] dark:bg-[#019364]',
+    iconColor: 'text-white',
   },
   overdue: {
     icon: AlertTriangle,
-    iconBg: 'bg-[#fee2e2] dark:bg-[#f32c2c]/20',
-    iconColor: 'text-[#dc2626] dark:text-[#f87171]',
-    accent: 'border-l-[#f32c2c]',
+    iconBg: 'bg-[#f32c2c] dark:bg-[#f32c2c]',
+    iconColor: 'text-white',
   },
   attachment: {
     icon: Paperclip,
-    iconBg: 'bg-[#fff7ed] dark:bg-[#ff5623]/20',
-    iconColor: 'text-[#ea580c] dark:text-[#fb923c]',
-    accent: 'border-l-[#ff5623]',
+    iconBg: 'bg-[#ff5623] dark:bg-[#ff5623]',
+    iconColor: 'text-white',
   },
   assigned: {
     icon: UserPlus,
-    iconBg: 'bg-[#fce7f3] dark:bg-[#ec4899]/20',
-    iconColor: 'text-[#db2777] dark:text-[#f472b6]',
-    accent: 'border-l-[#ec4899]',
+    iconBg: 'bg-[#ec4899] dark:bg-[#ec4899]',
+    iconColor: 'text-white',
   },
 };
 
@@ -68,7 +64,15 @@ const avatarColors = [
   'bg-[#ec4899]',
 ];
 
-export function NotificationCard({ notification }: { notification: NotificationItem }) {
+export function NotificationCard({
+  notification,
+  onClick,
+  className = '',
+}: {
+  notification: NotificationItem;
+  onClick?: () => void;
+  className?: string;
+}) {
   const config = typeConfig[notification.type];
   const TypeIcon = config.icon;
   const colorIndex = notification.actor.name.charCodeAt(0) % avatarColors.length;
@@ -83,11 +87,12 @@ export function NotificationCard({ notification }: { notification: NotificationI
 
   return (
     <div
-      className={`flex items-start gap-3 p-4 rounded-xl border-l-[3px] ${config.accent} transition-all ${
+      onClick={onClick}
+      className={`flex items-start gap-3 rounded-xl border p-4 transition-all ${
         notification.isRead
-          ? 'bg-white dark:bg-[#1e1e1e] border border-[#e5e5e5] dark:border-[#333] border-l-[3px]'
-          : 'bg-[#fffbf7] dark:bg-[#ff5623]/5 border border-[#ff5623]/10 dark:border-[#ff5623]/20 border-l-[3px]'
-      } hover:shadow-md`}
+          ? 'border-[#E6E9E5] bg-white dark:border-[#2F3233] dark:bg-[#1E1E1E]'
+          : 'border-[#FFD9CC] bg-[#FFF9F6] dark:border-[#493025] dark:bg-[#1B1513]'
+      } ${onClick ? 'cursor-pointer hover:shadow-md' : ''} ${className}`}
     >
       {/* Actor Avatar */}
       <div className="shrink-0 relative">
@@ -137,11 +142,21 @@ export function NotificationCard({ notification }: { notification: NotificationI
   );
 }
 
-export function NotificationList({ notifications }: { notifications: NotificationItem[] }) {
+export function NotificationList({
+  notifications,
+  onItemClick,
+}: {
+  notifications: NotificationItem[];
+  onItemClick?: (notification: NotificationItem) => void;
+}) {
   return (
     <div className="space-y-3">
       {notifications.map((n) => (
-        <NotificationCard key={n.id} notification={n} />
+        <NotificationCard
+          key={n.id}
+          notification={n}
+          onClick={onItemClick ? () => onItemClick(n) : undefined}
+        />
       ))}
     </div>
   );

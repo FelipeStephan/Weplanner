@@ -56,6 +56,7 @@ interface DetailedTaskCardProps {
   comments?: number;
   credits?: number;
   client?: { name: string; image?: string };
+  coverImage?: string | null;
   onClick?: () => void;
   actions?: React.ReactNode;
   showCompleteButton?: boolean;
@@ -81,6 +82,7 @@ export function DetailedTaskCard({
   comments = 0,
   credits,
   client,
+  coverImage,
   onClick,
   actions,
   showCompleteButton = true,
@@ -125,13 +127,21 @@ export function DetailedTaskCard({
 
   return (
     <div
-      className={`border rounded-[26px] p-5 transition-all duration-300 cursor-pointer group ${
+      className={`border rounded-[26px] overflow-hidden transition-all duration-300 cursor-pointer group animate-kanban-card ${
         isCompleted
           ? 'bg-white border-[#e5e5e5] shadow-[0_16px_28px_-24px_rgba(15,23,42,0.16)] dark:bg-[#151516] dark:border-[#2a2a2a] dark:shadow-[0_16px_28px_-24px_rgba(0,0,0,0.45)]'
           : 'bg-white border-[#e5e5e5] hover:shadow-md dark:bg-[#151516] dark:border-[#2a2a2a]'
       } ${isCompleting ? 'scale-[1.015] ring-2 ring-[#ff5623]/25 shadow-[0_22px_40px_-22px_rgba(255,86,35,0.38)]' : ''}`}
       onClick={onClick}
     >
+      {/* Foto de capa — renderiza só quando existir */}
+      {coverImage ? (
+        <div className="h-32 w-full overflow-hidden">
+          <img src={coverImage} alt="Capa" className="h-full w-full object-cover" />
+        </div>
+      ) : null}
+
+      <div className="p-5">
       <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <PriorityBadge priority={priority} size="sm" />
@@ -290,6 +300,7 @@ export function DetailedTaskCard({
             </span>
           )}
         </div>
+      </div>
       </div>
     </div>
   );

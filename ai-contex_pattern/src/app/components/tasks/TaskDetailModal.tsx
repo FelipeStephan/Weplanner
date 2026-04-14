@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import {
   X,
   Calendar,
@@ -21,7 +21,10 @@ import {
   ArrowRight,
   Building2,
   CheckCheck,
+  ChevronDown,
   Diamond,
+  FileType,
+  Trash2,
 } from 'lucide-react';
 import { PriorityBadge } from '../shared/PriorityBadge';
 import { TagBadge } from '../shared/TagBadge';
@@ -108,6 +111,11 @@ export function TaskDetailModal({
   const [completingAnim, setCompletingAnim] = useState(false);
   const [showActionsMenu, setShowActionsMenu] = useState(false);
 
+  const [coverImage, setCoverImage] = useState<string | null>(task.coverImage ?? null);
+  const coverImageInputRef = useRef<HTMLInputElement>(null);
+  const [showInlineCoverDropdown, setShowInlineCoverDropdown] = useState(false);
+  const [attachmentsList, setAttachmentsList] = useState<Attachment[]>(Array.isArray(task.attachmentsList) ? task.attachmentsList : []);
+
   useEffect(() => {
     if (!isOpen) return;
     const previousOverflow = document.body.style.overflow;
@@ -123,14 +131,15 @@ export function TaskDetailModal({
     setCompletingAnim(false);
     setShowActionsMenu(false);
     setSidebarView('comments');
-  }, [isOpen, task.credits, task.status, task.title]);
+    setCoverImage(task.coverImage ?? null);
+    setAttachmentsList(Array.isArray(task.attachmentsList) ? task.attachmentsList : []);
+  }, [isOpen, task]);
 
   if (!isOpen) return null;
 
   const taskTags = Array.isArray(task.tags) ? task.tags : [];
   const taskAssignees = Array.isArray(task.assignees) ? task.assignees : [];
   const taskComments = Array.isArray(task.comments) ? task.comments : [];
-  const attachmentsList = Array.isArray(task.attachmentsList) ? task.attachmentsList : [];
   const descriptionText = getRichTextPlainText(task.description);
   const dueDateState = getTaskDueDateState(task.dueDate);
   const displayDueDate = formatTaskDueDate(task.dueDate);
@@ -248,10 +257,76 @@ export function TaskDetailModal({
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 lg:flex">
+        <div className="min-h-0 flex-1 lg:flex" onClick={() => setShowInlineCoverDropdown(false)}>
           <section className="flex min-h-0 min-w-0 flex-1 flex-col border-b border-[#ececec] dark:border-[#2a2a2a] lg:border-b-0 lg:border-r">
             <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
-              {task.coverImage && <div className="mb-5 h-48 w-full overflow-hidden rounded-xl"><img src={task.coverImage} alt="Capa" className="h-full w-full object-cover" /></div>}
+              {coverImage && (
+                <div className="group relative mb-5 h-48 w-full rounded-xl border border-[#e5e5e5] dark:border-[#2a2a2a]">
+                  <img src={coverImage} alt="Capa" className="h-full w-full rounded-xl object-cover" />
+                  <div className={`absolute inset-0 flex items-center justify-center gap-2 rounded-xl bg-black/40 transition-opacity ${showInlineCoverDropdown ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setShowInlineCoverDropdown(!showInlineCoverDropdown); }}
+                        className="flex items-center gap-1.5 rounded-lg bg-white/90 px-3 py-1.5 text-[11px] font-semibold text-[#171717] shadow transition-all hover:bg-white"
+                      >
+                        <Image className="h-3.5 w-3.5" /> Trocar
+                      </button>
+                      {showInlineCoverDropdown && (
+                        <div className="absolute left-1/2 top-full z-[200] mt-2 w-56 -translate-x-1/2 rounded-xl border border-[#e5e5e5] bg-white p-2 shadow-xl dark:border-[#2a2a2a] dark:bg-[#1e1e1e]" onClick={(e) => e.stopPropagation()}>
+                          <button 
+                            type="button"
+                            onClick={() => { coverImageInputRef.current?.click(); setShowInlineCoverDropdown(false); }}
+                            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-[13px] hover:bg-[#f5f5f5] dark:hover:bg-[#232325]"
+                          >
+                            <Upload className="h-4 w-4" />
+                            Enviar do computador
+                          </button>
+                          {attachmentsList.filter((a) => a.type === 'image' || a.name.endsWith('.jpg') || a.name.endsWith('.png')).length > 0 && (
+                            <>
+                              <div className="my-1 h-px bg-[#e5e5e5] dark:bg-[#2a2a2a]" />
+                              <p className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-[#a3a3a3]">Dos anexos</p>
+                              {attachmentsList.filter((a) => a.type === 'image' || a.name.endsWith('.jpg') || a.name.endsWith('.png')).map((a) => (
+                                <button 
+                                  key={a.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setCoverImage('/src/assets/task-cover-demo.png');
+                                    setShowInlineCoverDropdown(false);
+                                    // Trigger backend save...
+                                  }}
+                                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-[13px] hover:bg-[#f5f5f5] dark:hover:bg-[#232325]"
+                                >
+                                  <Image className="h-4 w-4" />
+                                  <span className="truncate">{a.name}</span>
+                                </button>
+                              ))}
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => { setCoverImage(null); setShowInlineCoverDropdown(false); }}
+                      className="flex items-center gap-1.5 rounded-lg bg-[#f32c2c]/90 px-3 py-1.5 text-[11px] font-semibold text-white shadow transition-all hover:bg-[#f32c2c]"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" /> Remover
+                    </button>
+                  </div>
+                </div>
+              )}
+              <input
+                ref={coverImageInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  if (e.target.files && e.target.files[0]) {
+                    setCoverImage('/src/assets/task-cover-demo.png'); // Mock 
+                  }
+                }}
+              />
               <div className="space-y-5">
                 {alertInfo && <div className={`flex items-center gap-2 rounded-xl px-4 py-3 ${alertInfo.bg} ${alertInfo.text}`}><alertInfo.icon className="h-4 w-4" /><span className="text-sm font-semibold">{alertInfo.label}</span><span className="ml-auto text-xs">{displayDueDate}</span></div>}
                 <div className="flex flex-wrap gap-2">{taskTags.map((tag, i) => <TagBadge key={i} label={tag.label} color={tag.color} />)}</div>
@@ -273,9 +348,73 @@ export function TaskDetailModal({
                 <p className="-mt-2 flex items-center gap-1.5 text-[11px] text-[#a3a3a3]"><Clock className="h-3 w-3" />Criado em {task.createdAt || '10 Mar, 2026'} às 09:00</p>
                 <div><p className="mb-3 text-[10px] font-semibold uppercase tracking-wider text-[#a3a3a3]">Responsáveis</p><div className="flex items-center gap-3"><AvatarStack avatars={taskAssignees} max={6} size="md" /></div></div>
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between"><div className="flex items-center gap-2"><Paperclip className="h-4 w-4 text-[#737373]" /><h3 className="text-sm font-semibold">Anexos</h3></div><span className="rounded-md bg-[#f5f5f5] px-2 py-0.5 text-[10px] font-semibold text-[#737373] dark:bg-[#232325] dark:text-[#a3a3a3]">{attachmentsList.length}</span></div>
-                  <button className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-[#e5e5e5] px-4 py-4 text-[#737373] hover:border-[#ff5623]/40 hover:bg-[#ff5623]/5 hover:text-[#ff5623] dark:border-[#2a2a2a]"><Upload className="h-4.5 w-4.5" /><span className="text-sm font-semibold">Enviar arquivo</span></button>
-                  {attachmentsList.length > 0 ? <div className="space-y-3">{attachmentsList.map((attachment) => { const Icon = fileIcon(attachment.type); return <div key={attachment.id} className="group/file flex items-center gap-4 rounded-xl bg-[#fafafa] p-4 dark:bg-[#1e1e1e]"><div className={`flex h-10 w-10 items-center justify-center rounded-xl ${fileColor(attachment.type)}`}><Icon className="h-5 w-5" /></div><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{attachment.name}</p><p className="text-[11px] text-[#a3a3a3]">{attachment.size} · Enviado por {attachment.uploadedBy} · {attachment.uploadedAt}</p></div><button className="rounded-lg p-2 opacity-0 transition-all group-hover/file:opacity-100"><Download className="h-4 w-4 text-[#737373]" /></button></div>; })}</div> : <div className="py-8 text-center text-[#a3a3a3]"><Paperclip className="mx-auto mb-2 h-8 w-8 opacity-40" /><p className="text-sm">Nenhum anexo adicionado</p></div>}
+                  <div className="mb-2 flex items-center justify-between">
+                    <label className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-[#a3a3a3]">
+                      <Paperclip className="h-3 w-3" /> Anexos
+                    </label>
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#f5f5f5] text-[10px] font-bold text-[#737373] dark:bg-[#2a2a2a] dark:text-[#a3a3a3]">
+                      {attachmentsList.length}
+                    </span>
+                  </div>
+
+                  <div 
+                    className="mb-3 flex flex-col items-center justify-center rounded-xl border border-dashed border-[#d4d4d4] bg-[#fafafa]/50 p-6 transition-colors hover:border-[#ff5623]/50 hover:bg-[#fff8f6] dark:border-[#2a2a2a] dark:bg-[#1e1e1e]/50 cursor-pointer"
+                    onClick={() => {
+                      // Mock upload
+                      const newAttachment = {
+                         id: Math.random().toString(),
+                         name: 'novo_arquivo_selecionado.jpg',
+                         type: 'image' as const,
+                         size: '1.2 MB',
+                         uploadedBy: 'Felipe',
+                         uploadedAt: 'Agora'
+                      };
+                      setAttachmentsList((prev) => [...prev, newAttachment]);
+                    }}
+                  >
+                    <Upload className="mb-2 h-5 w-5 text-[#737373] dark:text-[#a3a3a3]" />
+                    <p className="text-sm font-semibold text-[#171717] dark:text-[#f5f5f5]">Clique ou arraste arquivos para anexar</p>
+                    <p className="mt-1 text-[11px] text-[#a3a3a3]">Até 25.0 MB por arquivo</p>
+                  </div>
+
+                  {attachmentsList.length > 0 && (
+                    <div className="space-y-2">
+                      {attachmentsList.map((file) => (
+                        <div key={file.id} className="flex items-center justify-between rounded-xl border border-[#e5e5e5] bg-white p-2.5 shadow-sm transition-all hover:shadow-md dark:border-[#2a2a2a] dark:bg-[#1a1a1a]">
+                          <div className="flex items-center gap-3 overflow-hidden">
+                            {file.type === 'image' || file.name.endsWith('.jpg') || file.name.endsWith('.png') ? (
+                              <div className="h-10 w-12 shrink-0 overflow-hidden rounded-lg bg-[#f5f5f5] dark:bg-[#2a2a2a]">
+                                <img src="/src/assets/task-cover-demo.png" alt={file.name} className="h-full w-full object-cover" />
+                              </div>
+                            ) : (
+                              <div className="flex h-10 w-12 shrink-0 items-center justify-center rounded-lg bg-[#f5f5f5] dark:bg-[#2a2a2a]">
+                                <FileType className="h-5 w-5 text-[#a3a3a3]" />
+                              </div>
+                            )}
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-semibold text-[#171717] dark:text-[#f5f5f5]">{file.name}</p>
+                              <p className="text-[11px] text-[#a3a3a3]">{file.size}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1 pl-2">
+                            <button type="button" className="rounded-lg p-1.5 text-[#737373] transition-colors hover:bg-[#f5f5f5] hover:text-[#171717] dark:text-[#a3a3a3] dark:hover:bg-[#2a2a2a] dark:hover:text-[#f5f5f5]">
+                              <Upload className="h-4 w-4 rotate-180" />
+                            </button>
+                            <button 
+                              type="button"
+                              onClick={() => setAttachmentsList((prev) => prev.filter((a) => a.id !== file.id))}
+                              className="rounded-lg p-1.5 text-[#737373] transition-colors hover:bg-[#fee2e2] hover:text-[#f32c2c] dark:text-[#a3a3a3] dark:hover:bg-[#311514] dark:hover:text-[#f32c2c]"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                            <button type="button" className="rounded-lg p-1.5 text-[#737373] transition-colors hover:bg-[#f5f5f5] hover:text-[#171717] dark:text-[#a3a3a3] dark:hover:bg-[#2a2a2a] dark:hover:text-[#f5f5f5]">
+                              <ChevronDown className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
