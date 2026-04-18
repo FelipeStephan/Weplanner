@@ -25,6 +25,7 @@ import {
   X,
 } from 'lucide-react';
 import { AvatarStack } from '../shared/AvatarStack';
+import { DateTimePicker } from '../shared/DateTimePicker';
 import {
   buildTaskDueDateValue,
   formatTaskDueDate,
@@ -1040,20 +1041,17 @@ export function CreateTaskModal({
               <label className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-[#a3a3a3]">
                 <Calendar className="h-3 w-3" /> Data de entrega
               </label>
-              <div className="grid grid-cols-[minmax(0,1fr)_112px] gap-2">
-                <input
-                  type="date"
-                  value={dueDate}
-                  onChange={(event) => setDueDate(event.target.value)}
-                  className="h-10 w-full rounded-xl border border-[#e5e5e5] bg-[#fafafa] px-4 text-sm text-[#171717] transition-all focus:border-[#ff5623] focus:outline-none focus:ring-2 focus:ring-[#ff5623]/20 dark:border-[#2a2a2a] dark:bg-[#1e1e1e] dark:text-[#f5f5f5]"
-                />
-                <input
-                  type="time"
-                  value={dueTime}
-                  onChange={(event) => setDueTime(event.target.value)}
-                  className="h-10 w-full rounded-xl border border-[#e5e5e5] bg-[#fafafa] px-3 text-sm text-[#171717] transition-all focus:border-[#ff5623] focus:outline-none focus:ring-2 focus:ring-[#ff5623]/20 dark:border-[#2a2a2a] dark:bg-[#1e1e1e] dark:text-[#f5f5f5]"
-                />
-              </div>
+              <DateTimePicker
+                variant="field"
+                value={buildTaskDueDateValue(dueDate, dueTime)}
+                placeholder="Selecionar data e hora"
+                onChange={(val) => {
+                  const parts = getTaskDueDateInputParts(val);
+                  setDueDate(parts.date);
+                  setDueTime(parts.time);
+                }}
+                onClear={() => { setDueDate(''); setDueTime(''); }}
+              />
             </div>
             <div>
               <label className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-[#a3a3a3]">
