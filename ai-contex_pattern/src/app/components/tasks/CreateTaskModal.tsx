@@ -347,59 +347,6 @@ export function CreateTaskModal({
             </h2>
           </div>
           <div className="flex items-center gap-2">
-            <div className="relative">
-              <button 
-                type="button"
-                onClick={() => setShowCoverDropdown(!showCoverDropdown)} 
-                className="flex items-center gap-1.5 rounded-lg border border-[#e5e5e5] bg-white px-3 py-1.5 text-xs font-semibold text-[#525252] transition-colors hover:bg-[#fafafa] dark:border-[#2a2a2a] dark:bg-[#1e1e1e] dark:text-[#a3a3a3] dark:hover:bg-[#232325]"
-              >
-                <ImagePlus className="h-4 w-4" />
-                Capa
-              </button>
-              {showCoverDropdown && (
-                <div className="absolute right-0 top-full mt-2 w-56 z-[200] rounded-xl border border-[#e5e5e5] bg-white p-2 shadow-xl dark:border-[#2a2a2a] dark:bg-[#1e1e1e]">
-                  <button 
-                    type="button"
-                    onClick={() => { coverImageInputRef.current?.click(); setShowCoverDropdown(false); }}
-                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-[#f5f5f5] dark:hover:bg-[#232325]"
-                  >
-                    <Upload className="h-4 w-4" />
-                    Enviar do computador
-                  </button>
-                  {coverImage && (
-                    <button 
-                      type="button"
-                      onClick={() => { setCoverImage(null); setShowCoverDropdown(false); }}
-                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-[#f32c2c] hover:bg-[#fee2e2] dark:hover:bg-[#311514]"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                      Remover capa atual
-                    </button>
-                  )}
-                  {attachments.filter(a => a.type === 'image').length > 0 && (
-                    <>
-                      <div className="my-1 h-px bg-[#e5e5e5] dark:bg-[#2a2a2a]" />
-                      <p className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-[#a3a3a3]">Dos anexos</p>
-                      {attachments.filter(a => a.type === 'image').map(a => (
-                        <button 
-                          key={a.id}
-                          type="button"
-                          onClick={() => {
-                            setCoverImage('/src/assets/task-cover-demo.png');
-                            setShowCoverDropdown(false);
-                          }}
-                          className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-[#f5f5f5] dark:hover:bg-[#232325]"
-                        >
-                          <Image className="h-4 w-4" />
-                          <span className="truncate">{a.name}</span>
-                        </button>
-                      ))}
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
-            
             <button onClick={onClose} className="rounded-lg p-1.5 transition-colors hover:bg-[#f5f5f5] dark:hover:bg-[#2a2a2a]">
               <X className="h-4 w-4 text-[#a3a3a3]" />
             </button>
@@ -487,6 +434,17 @@ export function CreateTaskModal({
             className="hidden"
             onChange={handleCoverImageChange}
           />
+
+          {/* ── Add Cover Button (sem capa) ── */}
+          {!coverImage && (
+            <button
+              type="button"
+              onClick={() => coverImageInputRef.current?.click()}
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-[#d4d4d4] bg-[#fafafa]/50 py-3 text-[12px] font-semibold text-[#a3a3a3] transition-colors hover:border-[#ff5623]/50 hover:bg-[#fff8f6] hover:text-[#ff5623] dark:border-[#2a2a2a] dark:bg-[#1e1e1e]/50 dark:hover:border-[#ff5623]/40 dark:hover:text-[#ff8c69]"
+            >
+              <ImagePlus className="h-4 w-4" /> Adicionar capa
+            </button>
+          )}
 
           <div>
             <label className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-[#a3a3a3]">
@@ -950,27 +908,33 @@ export function CreateTaskModal({
                 {tags.map((tag, index) => {
                   const pickerKey = `tag-${index}`;
                   return (
-                    <div key={tag.label} className="relative flex shrink-0 items-center rounded-md" style={{ backgroundColor: tag.color.bg }}>
-                      <button
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          setTagPickerKey(tagPickerKey === pickerKey ? null : pickerKey);
-                        }}
-                        className="pl-2 pr-1 py-0.5 text-[11px] font-semibold transition-opacity hover:opacity-80"
-                        style={{ color: tag.color.text }}
+                    <div key={tag.label} className="group relative flex shrink-0 items-center">
+                      <div
+                        className="rounded-md px-2 py-0.5 text-[11px] font-semibold"
+                        style={{ backgroundColor: tag.color.bg, color: tag.color.text }}
                       >
                         {tag.label}
-                      </button>
+                      </div>
+                      {/* X vermelho no hover — mesmo padrão do TaskDetailModal */}
                       <button
+                        type="button"
                         onClick={(event) => {
                           event.stopPropagation();
                           setTags((prev) => prev.filter((_, currentIndex) => currentIndex !== index));
                         }}
-                        className="pl-0.5 pr-1.5 py-0.5 transition-opacity hover:opacity-60"
-                        style={{ color: tag.color.text }}
+                        className="absolute -right-1.5 -top-1.5 z-10 hidden h-4 w-4 items-center justify-center rounded-full bg-[#f32c2c] text-white shadow-sm group-hover:flex"
                       >
-                        <X className="h-3 w-3" />
+                        <X className="h-2.5 w-2.5" />
                       </button>
+                      {/* Clique na pill abre color picker */}
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setTagPickerKey(tagPickerKey === pickerKey ? null : pickerKey);
+                        }}
+                        className="absolute inset-0 bg-transparent"
+                      />
                       {tagPickerKey === pickerKey && (
                         <div className="absolute left-0 top-full z-[200] mt-1.5 rounded-xl border border-[#e5e5e5] bg-white p-2 shadow-xl dark:border-[#2a2a2a] dark:bg-[#1e1e1e]" style={{ minWidth: '120px' }} onClick={(event) => event.stopPropagation()}>
                           <p className="mb-1.5 px-1 text-[9px] font-semibold uppercase tracking-wider text-[#a3a3a3]">Cor da tag</p>
