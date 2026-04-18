@@ -73,6 +73,7 @@ export function TaskDetailModal({
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [editDescription, setEditDescription] = useState(getRichTextPlainText(task.description));
   const [editDueDate, setEditDueDate] = useState(() => task.dueDate?.split('T')[0] ?? '');
+  const [editDueTime, setEditDueTime] = useState(() => task.dueDate?.includes('T') ? task.dueDate.split('T')[1]?.slice(0, 5) : '');
   
   // Tag States
   const [showTagPicker, setShowTagPicker] = useState<string | number | false>(false);
@@ -114,6 +115,7 @@ export function TaskDetailModal({
     setEditTitle(task.title);
     setEditDescription(getRichTextPlainText(task.description));
     setEditDueDate(task.dueDate?.split('T')[0] ?? '');
+    setEditDueTime(task.dueDate?.includes('T') ? task.dueDate.split('T')[1]?.slice(0, 5) : '');
     setIsEditingTitle(false);
     setIsEditingDescription(false);
     setShowTagPicker(false);
@@ -388,19 +390,26 @@ export function TaskDetailModal({
                 <div>
                   <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-[#a3a3a3]">Tags</p>
                   <div className="flex flex-wrap items-center gap-2">
-                    {taskTags.map((tag, i) => (
-                      <div key={i} className="group relative flex items-center">
-                        <TagBadge label={tag.label} color={tag.color as any} />
-                        <button
-                          type="button"
-                          onClick={() => removeTag(tag.label)}
-                          className="absolute -right-1.5 -top-1.5 hidden h-4 w-4 items-center justify-center rounded-full bg-[#f32c2c] text-white group-hover:flex shadow-sm z-10"
-                        >
-                          <X className="h-2.5 w-2.5" />
-                        </button>
-                        <button onClick={(e) => { e.stopPropagation(); setShowTagPicker(showTagPicker === i ? false : i); }} className="absolute inset-0 bg-transparent" />
-                        {showTagPicker === i && (
-                            <div className="absolute left-0 top-full z-[200] mt-1.5 rounded-xl border border-[#e5e5e5] bg-white p-2 shadow-xl dark:border-[#2a2a2a] dark:bg-[#1e1e1e]" style={{ minWidth: '120px' }} onClick={(event) => event.stopPropagation()}>
+                    {taskTags.map((tag, i) => {
+                      const palette = TAG_PALETTE.find((c) => c.colorName === tag.color) ?? TAG_PALETTE[0];
+                      return (
+                        <div key={i} className="relative flex shrink-0 items-center rounded-md" style={{ backgroundColor: palette.bg }}>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setShowTagPicker(showTagPicker === i ? false : i); }}
+                            className="pl-2 pr-1 py-0.5 text-[11px] font-semibold transition-opacity hover:opacity-80"
+                            style={{ color: palette.text }}
+                          >
+                            {tag.label}
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); removeTag(tag.label); }}
+                            className="pl-0.5 pr-1.5 py-0.5 transition-opacity hover:opacity-60"
+                            style={{ color: palette.text }}
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                          {showTagPicker === i && (
+                            <div className="absolute left-0 top-full z-[200] mt-1.5 rounded-xl border border-[#e5e5e5] bg-white p-2 shadow-xl dark:border-[#2a2a2a] dark:bg-[#1e1e1e]" style={{ minWidth: '120px' }} onClick={(e) => e.stopPropagation()}>
                               <p className="mb-1.5 px-1 text-[9px] font-semibold uppercase tracking-wider text-[#a3a3a3]">Cor da tag</p>
                               <div className="grid grid-cols-4 gap-1.5">
                                 {TAG_PALETTE.map((color) => (
@@ -413,9 +422,10 @@ export function TaskDetailModal({
                                 ))}
                               </div>
                             </div>
-                        )}
-                      </div>
-                    ))}
+                          )}
+                        </div>
+                      );
+                    })}
                     {taskTags.length < 5 && (
                       <div className="relative">
                         <button 
@@ -550,22 +560,30 @@ export function TaskDetailModal({
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div className="rounded-xl bg-[#fafafa] p-4 dark:bg-[#1e1e1e]">
                     <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-[#a3a3a3]">Data de entrega</p>
-                    <div className="relative group flex items-center gap-2 rounded-xl border border-transparent p-1.5 -ml-1.5 hover:bg-[#e5e5e5] dark:hover:bg-[#2a2a2a] transition-colors cursor-pointer w-full text-left">
+                    <div className="grid grid-cols-[1fr_96px] gap-2">
                       <input
                         type="date"
                         value={editDueDate}
                         onChange={(e) => {
                           setEditDueDate(e.target.value);
                           if (e.target.value) {
-                            onUpdateTaskField?.({ dueDate: e.target.value }, 'alterou a data de entrega', 'edit');
+                            const time = editDueTime || '00:00';
+                            onUpdateTaskField?.({ dueDate: `${e.target.value}T${time}` }, 'alterou a data de entrega', 'edit');
                           }
                         }}
-                        className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
+                        className="h-9 w-full rounded-xl border border-[#e5e5e5] bg-white px-3 text-sm text-[#171717] transition-all focus:border-[#ff5623] focus:outline-none focus:ring-2 focus:ring-[#ff5623]/20 dark:border-[#2a2a2a] dark:bg-[#1e1e1e] dark:text-[#f5f5f5]"
                       />
-                      <Calendar className={`h-4 w-4 shrink-0 transition-colors group-hover:text-[#ff5623] ${dueDateState === 'overdue' ? 'text-[#f32c2c]' : dueDateState === 'warning' ? 'text-[#ca8a04]' : 'text-[#a3a3a3]'}`} />
-                      <span className={`text-sm font-semibold truncate transition-colors group-hover:text-[#ff5623] ${dueDateState === 'overdue' ? 'text-[#dc2626] dark:text-[#ff4d4f]' : dueDateState === 'warning' ? 'text-[#a16207] dark:text-[#d89b18]' : 'text-[#171717] dark:text-[#f5f5f5]'}`}>
-                        {displayDueDate || 'Não definido'}
-                      </span>
+                      <input
+                        type="time"
+                        value={editDueTime}
+                        onChange={(e) => {
+                          setEditDueTime(e.target.value);
+                          if (editDueDate) {
+                            onUpdateTaskField?.({ dueDate: `${editDueDate}T${e.target.value}` }, 'alterou o horário de entrega', 'edit');
+                          }
+                        }}
+                        className="h-9 w-full rounded-xl border border-[#e5e5e5] bg-white px-2 text-sm text-[#171717] transition-all focus:border-[#ff5623] focus:outline-none focus:ring-2 focus:ring-[#ff5623]/20 dark:border-[#2a2a2a] dark:bg-[#1e1e1e] dark:text-[#f5f5f5]"
+                      />
                     </div>
                   </div>
                   <div className="rounded-xl bg-[#fafafa] p-4 dark:bg-[#1e1e1e]">

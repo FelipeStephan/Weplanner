@@ -908,33 +908,27 @@ export function CreateTaskModal({
                 {tags.map((tag, index) => {
                   const pickerKey = `tag-${index}`;
                   return (
-                    <div key={tag.label} className="group relative flex shrink-0 items-center">
-                      <div
-                        className="rounded-md px-2 py-0.5 text-[11px] font-semibold"
-                        style={{ backgroundColor: tag.color.bg, color: tag.color.text }}
-                      >
-                        {tag.label}
-                      </div>
-                      {/* X vermelho no hover — mesmo padrão do TaskDetailModal */}
+                    <div key={tag.label} className="relative flex shrink-0 items-center rounded-md" style={{ backgroundColor: tag.color.bg }}>
                       <button
-                        type="button"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          setTags((prev) => prev.filter((_, currentIndex) => currentIndex !== index));
-                        }}
-                        className="absolute -right-1.5 -top-1.5 z-10 hidden h-4 w-4 items-center justify-center rounded-full bg-[#f32c2c] text-white shadow-sm group-hover:flex"
-                      >
-                        <X className="h-2.5 w-2.5" />
-                      </button>
-                      {/* Clique na pill abre color picker */}
-                      <button
-                        type="button"
                         onClick={(event) => {
                           event.stopPropagation();
                           setTagPickerKey(tagPickerKey === pickerKey ? null : pickerKey);
                         }}
-                        className="absolute inset-0 bg-transparent"
-                      />
+                        className="pl-2 pr-1 py-0.5 text-[11px] font-semibold transition-opacity hover:opacity-80"
+                        style={{ color: tag.color.text }}
+                      >
+                        {tag.label}
+                      </button>
+                      <button
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setTags((prev) => prev.filter((_, currentIndex) => currentIndex !== index));
+                        }}
+                        className="pl-0.5 pr-1.5 py-0.5 transition-opacity hover:opacity-60"
+                        style={{ color: tag.color.text }}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
                       {tagPickerKey === pickerKey && (
                         <div className="absolute left-0 top-full z-[200] mt-1.5 rounded-xl border border-[#e5e5e5] bg-white p-2 shadow-xl dark:border-[#2a2a2a] dark:bg-[#1e1e1e]" style={{ minWidth: '120px' }} onClick={(event) => event.stopPropagation()}>
                           <p className="mb-1.5 px-1 text-[9px] font-semibold uppercase tracking-wider text-[#a3a3a3]">Cor da tag</p>
