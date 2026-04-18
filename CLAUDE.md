@@ -73,27 +73,39 @@ Compress-Archive -Path dist\* -DestinationPath dist_deploy.zip -Force
 ai-contex_pattern/              # App principal (React + Vite)
   src/
     app/
-      App.tsx                   # Componente raiz — todas as seções e mocks de dados
+      App.tsx                   # Componente raiz — APENAS composição (imports + JSX + roteamento)
+      data/                     # Mock data / constantes de dados
+        avatars.ts              # AVATAR_URLS (URLs de avatares)
+        team.ts                 # TEAM (membros da equipe)
+        notifications.ts        # MOCK_NOTIFICATIONS
+        modalTasks.ts           # MOCK_COMMENTS + MODAL_TASK_DATA
+        iconGroups.ts           # ICON_GROUPS (catálogo de ícones do design system)
+      types/                    # Types compartilhados
+        navigation.ts           # Section, Role, PageView
+      utils/                    # Funções puras utilitárias
+        routeState.ts           # getRouteStateFromHash
+      hooks/                    # Custom hooks (a criar conforme necessidade)
+      pages/                    # Páginas de seção (a criar na Fase 2)
       components/
-        tasks/
-          CreateTaskModal.tsx   # Modal de criação de tarefa
-          TaskDetailModal.tsx   # Modal de detalhes da tarefa
-          TaskCard.tsx          # Card de tarefa (kanban/lista)
-          StatusBadge.tsx       # Badge de status
-          KanbanColumn.tsx      # Coluna kanban
-          DetailedTaskCard.tsx  # Card expandido
-          SimpleTaskCard.tsx    # Card compacto
-          MeetingCard.tsx       # Card de reunião
-        shared/
-          PriorityBadge.tsx     # Badge de prioridade
-          TagBadge.tsx          # Badge de tag
-          AvatarStack.tsx       # Stack de avatares
-          ProgressBar.tsx       # Barra de progresso
+        tasks/                  # Componentes de tarefa
+        shared/                 # Componentes reutilizáveis (Badge, Avatar, etc.)
         dashboard/              # Componentes do dashboard
-        ui/                     # Componentes base (Button, etc.)
+        boards/                 # Componentes de board/kanban
+        team/                   # Componentes de equipe
+        clients/                # Componentes de clientes
+        reports/                # Componentes de relatórios
+        settings/               # Componentes de configurações
+        auth/                   # Componentes de autenticação
+        onboarding/             # Componentes de onboarding
+        ui/                     # Componentes base (Button, Input, etc.)
     styles/
       index.css                 # Tailwind v4 config + variáveis CSS
     main.tsx                    # Entry point
+    context/                    # Contexts (Workspace, Settings, etc.)
+    repositories/               # Camada de acesso a dados
+    domain/                     # Types e contracts do domínio
+    demo/                       # Demo data (seeds e fixtures)
+    imports/                    # Imports gerados do Figma
 
   DESIGN_SYSTEM.md              # Tokens detalhados (cores, tipografia, sombras)
   COMPONENT_LIBRARY.md          # Guia de implementação dos componentes
@@ -158,14 +170,67 @@ Modal de visualização/edição de tarefas com:
 - Customizados: clicar `+` cria chip inline editável → digita nome → Enter salva → hover mostra X para deletar
 - Interface `CustomStatus { value: string; label: string; color: string }`
 
-### Dados mock em App.tsx
-- `TEAM` — array de membros da equipe com nome, cargo, avatar, cor
-- `MOCK_COMMENTS` — comentários mockados
-- `MODAL_TASK_DATA` — objeto Record<string, TaskData> com 9 tarefas detalhadas:
-  - `"design-system"`, `"api-docs"`, `"onboarding-flow"`, `"db-migration"`, e outras
-  - Cada tarefa tem: title, description, priority, status, subtasks, subtasksList, progress, dueDate, tags, assignees, attachmentsList, comments, createdAt, credits, **client** (string simples, ex: "WePlanner")
+### Dados mock (extraídos para `src/app/data/`)
+- `AVATAR_URLS` → `src/app/data/avatars.ts`
+- `TEAM` → `src/app/data/team.ts`
+- `MOCK_NOTIFICATIONS` → `src/app/data/notifications.ts`
+- `MOCK_COMMENTS` + `MODAL_TASK_DATA` → `src/app/data/modalTasks.ts`
+- `ICON_GROUPS` → `src/app/data/iconGroups.ts` (catálogo dead code, usado por showcase futuro)
 
-> ⚠️ **Atenção:** O campo `client` em `MODAL_TASK_DATA` deve ser **string simples** (ex: `"WePlanner"`), não objeto. Já foi corrigido — não reverter para `{ name: "..." }`.
+`MODAL_TASK_DATA` é `Record<string, TaskData>` com 9 tarefas. Cada tarefa tem: title, description, priority, status, subtasks, subtasksList, progress, dueDate, tags, assignees, attachmentsList, comments, createdAt, credits, **client** (string simples, ex: `"WePlanner"`).
+
+> ⚠️ **Atenção:** O campo `client` em `MODAL_TASK_DATA` deve ser **string simples** (ex: `"WePlanner"`), não objeto. Não reverter para `{ name: "..." }`.
+
+---
+
+## 🧱 Regras de arquitetura e tamanho (HARD RULES)
+
+Essas regras existem para evitar a regressão ao monólito `App.tsx` 2048-linhas. **Não são sugestões — são gates.**
+
+### Limites numéricos
+| Escopo | Limite | Ação ao exceder |
+|--------|--------|-----------------|
+| Qualquer arquivo `.tsx`/`.ts` | **400 linhas** | Extrair antes de continuar |
+| Componente inline (função dentro de outro arquivo) | **80 linhas** de JSX | Mover para próprio arquivo |
+| `App.tsx` | **250 linhas** (meta pós-Fase 2) | Bloquear merge |
+| Função/handler | **50 linhas** | Quebrar em helpers ou custom hook |
+| Props de um componente | **8 props** | Agrupar em objeto ou usar context |
+
+### Localização obrigatória por tipo de código
+- **Mock data / constantes de dados** → `src/app/data/` (NUNCA em `App.tsx` ou dentro de componentes)
+- **Types compartilhados** → `src/app/types/`
+- **Funções puras utilitárias** → `src/app/utils/`
+- **Custom hooks** (`useXxx`) → `src/app/hooks/`
+- **Páginas de seção** (1 por rota) → `src/app/pages/`
+- **Componentes de UI reutilizáveis** → `src/app/components/<domínio>/`
+- **Context providers** → `src/context/`
+
+### O que `App.tsx` PODE conter
+- Imports
+- Roteamento por hash (switch de `pageView`)
+- Composição de providers top-level
+- Estado global mínimo que precisa viver na raiz (ex: user session)
+
+### O que `App.tsx` NÃO PODE conter
+- ❌ Arrays/objetos de mock data inline
+- ❌ JSX de mais de uma página (cada rota → sua página em `pages/`)
+- ❌ Handlers de negócio (ficam no hook/página relevante)
+- ❌ Definições de sub-componentes no mesmo arquivo
+- ❌ Lógica de transformação de dados (vai para `utils/` ou repositório)
+
+### Quando criar algo novo
+1. **Antes de adicionar código a um arquivo existente**, verifique o tamanho atual. Se está a < 50 linhas do limite, extraia primeiro.
+2. **Antes de inventar uma pasta nova**, confira se alguma das existentes (`data/`, `types/`, `utils/`, `hooks/`, `pages/`, `components/<domínio>/`) já serve.
+3. **Mock data nunca vive dentro de função de componente** — sempre em módulo no top-level de `data/`.
+4. **Um arquivo = uma responsabilidade**: um componente por arquivo (exceto sub-componentes privados < 30 linhas usados só localmente).
+
+### Checklist antes de considerar uma mudança "pronta"
+- [ ] Nenhum arquivo ultrapassou 400 linhas
+- [ ] `App.tsx` continua abaixo da meta
+- [ ] Mock data está em `src/app/data/`, não inline
+- [ ] Types exportados ficam em `src/app/types/` (ou colocalizados se usados em 1 só lugar)
+- [ ] Dev server carrega sem erro de import
+- [ ] Rota principal afetada renderiza (smoke test)
 
 ---
 
