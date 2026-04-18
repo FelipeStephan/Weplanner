@@ -80,33 +80,8 @@ export interface CreateTaskSubmitData {
 
 export interface CreateTaskInitialData extends Partial<CreateTaskSubmitData> {}
 
-const PRIORITY_OPTIONS = [
-  { value: 'low', label: 'Baixa', activeBg: 'bg-[#16a34a]', passiveBg: 'bg-[#dcfce7]', passiveText: 'text-[#16a34a]' },
-  { value: 'medium', label: 'Média', activeBg: 'bg-[#ca8a04]', passiveBg: 'bg-[#fef9c3]', passiveText: 'text-[#a16207]' },
-  { value: 'high', label: 'Alta', activeBg: 'bg-[#dc2626]', passiveBg: 'bg-[#fee2e2]', passiveText: 'text-[#dc2626]' },
-  { value: 'urgent', label: 'Urgente', activeBg: 'bg-[#7e22ce]', passiveBg: 'bg-[#f3e8ff]', passiveText: 'text-[#7e22ce]' },
-] as const;
 
-const WORKFLOW_STAGE_LABELS: Record<WorkflowStatus, string> = {
-  backlog: 'Backlog',
-  todo: 'A Fazer',
-  in_progress: 'Em Progresso',
-  review: 'Revisão',
-  adjustments: 'Ajustes',
-  approval: 'Aprovação',
-  done: 'Concluído',
-};
-
-const TAG_PALETTE = [
-  { bg: '#ff5623', text: '#ffffff', label: 'Laranja' },
-  { bg: '#feba31', text: '#7c3a00', label: 'Amarelo' },
-  { bg: '#019364', text: '#ffffff', label: 'Verde' },
-  { bg: '#987dfe', text: '#ffffff', label: 'Roxo' },
-  { bg: '#3b82f6', text: '#ffffff', label: 'Azul' },
-  { bg: '#f32c2c', text: '#ffffff', label: 'Vermelho' },
-  { bg: '#ffbee9', text: '#9d174d', label: 'Rosa' },
-  { bg: '#e5e5e5', text: '#525252', label: 'Cinza' },
-] as const;
+import { PRIORITY_OPTIONS, WORKFLOW_STAGE_LABELS, TAG_PALETTE_CREATE as TAG_PALETTE, FONT_SIZES, TEXT_COLORS } from '../../data/taskForm';
 
 type TagColor = (typeof TAG_PALETTE)[number];
 
@@ -115,8 +90,6 @@ interface TagItem {
   color: TagColor;
 }
 
-const FONT_SIZES = ['12px', '14px', '16px', '18px', '20px', '24px'];
-const TEXT_COLORS = ['#171717', '#ff5623', '#019364', '#987dfe', '#3b82f6', '#f32c2c', '#ca8a04'];
 
 function getInitials(name: string) {
   return name

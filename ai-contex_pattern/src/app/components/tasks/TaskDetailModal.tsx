@@ -25,6 +25,9 @@ import {
   Diamond,
   FileType,
   Trash2,
+  Plus,
+  Search,
+  Check,
 } from 'lucide-react';
 import { PriorityBadge } from '../shared/PriorityBadge';
 import { TagBadge } from '../shared/TagBadge';
@@ -33,62 +36,9 @@ import { ProgressBar } from '../shared/ProgressBar';
 import { StatusBadge } from './StatusBadge';
 import { formatTaskDueDate, getTaskDueDateState } from '../../utils/taskDueDate';
 import { getRichTextPlainText, toDisplayRichTextHtml } from '../../utils/richText';
-
-interface Comment {
-  id: string;
-  author: { name: string; image?: string };
-  text: string;
-  timestamp: string;
-}
-
-interface Attachment {
-  id: string;
-  name: string;
-  size: string;
-  type: 'pdf' | 'image' | 'doc' | 'spreadsheet' | 'other';
-  uploadedBy: string;
-  uploadedAt: string;
-}
-
-interface TaskDetailModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onCompleteTask?: () => void;
-  onToggleSubtask?: (subtaskId: string) => void;
-  onEditTask?: () => void;
-  onDuplicateTask?: () => void;
-  onCopyTaskLink?: () => void;
-  onCancelTask?: () => void;
-  onArchiveTask?: () => void;
-  onOpenClientLibrary?: (clientId?: string | null, clientName?: string | null) => void;
-  task: {
-    title: string;
-    description?: string;
-    priority: 'low' | 'medium' | 'high' | 'urgent';
-    status: 'backlog' | 'todo' | 'in_progress' | 'in-progress' | 'adjustments' | 'approval' | 'done' | 'internal-approval' | 'review' | 'completed' | 'blocked' | 'archived' | 'new';
-    statusLabel?: string;
-    subtasks?: { completed: number; total: number };
-    subtasksList?: Array<{ id?: string; label?: string; title?: string; done: boolean; dueDate?: string; assignee?: { name: string; image?: string } }>;
-    progress: number;
-    dueDate: string;
-    tags: Array<{ label: string; color: 'orange' | 'blue' | 'green' | 'purple' | 'pink' | 'yellow' | 'red' | 'gray' }>;
-    assignees: Array<{ name: string; image?: string }>;
-    attachmentsList?: Attachment[];
-    comments: Comment[];
-    createdAt?: string;
-    coverImage?: string;
-    credits?: number;
-    client?: string;
-    clientId?: string | null;
-    activityLog?: Array<{
-      id: string;
-      icon: 'move' | 'complete' | 'archive' | 'cancel' | 'send' | 'create' | 'edit';
-      actor: string;
-      action: string;
-      timestamp: string;
-    }>;
-  };
-}
+import { BOARD_DIRECTORY_USERS } from '../../../demo/boardDirectory';
+import type { TaskDetailComment as Comment, TaskDetailAttachment as Attachment, TaskDetailModalProps } from '../../types/taskDetail';
+import { MOCK_TASK_FORM_CLIENTS } from '../../data/taskForm';
 
 export function TaskDetailModal({
   isOpen,
@@ -101,6 +51,7 @@ export function TaskDetailModal({
   onCancelTask,
   onArchiveTask,
   onOpenClientLibrary,
+  onUpdateTaskField,
   task,
 }: TaskDetailModalProps) {
   const [commentText, setCommentText] = useState('');
@@ -115,6 +66,30 @@ export function TaskDetailModal({
   const coverImageInputRef = useRef<HTMLInputElement>(null);
   const [showInlineCoverDropdown, setShowInlineCoverDropdown] = useState(false);
   const [attachmentsList, setAttachmentsList] = useState<Attachment[]>(Array.isArray(task.attachmentsList) ? task.attachmentsList : []);
+
+  // Edit Inline States
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editTitle, setEditTitle] = useState(task.title);
+  const [isEditingDescription, setIsEditingDescription] = useState(false);
+  const [editDescription, setEditDescription] = useState(getRichTextPlainText(task.description));
+  
+  // Tag States
+  const [showTagPicker, setShowTagPicker] = useState<string | number | false>(false);
+  const [tagInput, setTagInput] = useState('');
+  const tagInputRef = useRef<HTMLInputElement>(null);
+  
+  // Assignee States
+  const [showAssigneeDropdown, setShowAssigneeDropdown] = useState(false);
+  const [assigneeSearch, setAssigneeSearch] = useState('');
+  const assigneeSearchRef = useRef<HTMLInputElement>(null);
+
+  // Client States
+  const [showClientDropdown, setShowClientDropdown] = useState(false);
+
+  // Subtask States
+  const [showSubtaskInput, setShowSubtaskInput] = useState(false);
+  const [subtaskInput, setSubtaskInput] = useState('');
+  const subtaskInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -133,6 +108,16 @@ export function TaskDetailModal({
     setSidebarView('comments');
     setCoverImage(task.coverImage ?? null);
     setAttachmentsList(Array.isArray(task.attachmentsList) ? task.attachmentsList : []);
+    
+    // Reset inline edit states
+    setEditTitle(task.title);
+    setEditDescription(getRichTextPlainText(task.description));
+    setIsEditingTitle(false);
+    setIsEditingDescription(false);
+    setShowTagPicker(false);
+    setShowAssigneeDropdown(false);
+    setShowClientDropdown(false);
+    setShowSubtaskInput(false);
   }, [isOpen, task]);
 
   if (!isOpen) return null;
@@ -143,6 +128,41 @@ export function TaskDetailModal({
   const descriptionText = getRichTextPlainText(task.description);
   const dueDateState = getTaskDueDateState(task.dueDate);
   const displayDueDate = formatTaskDueDate(task.dueDate);
+
+  const TAG_PALETTE = [
+    { bg: '#fee2e2', text: '#dc2626', colorName: 'red' as const },
+    { bg: '#ffedd5', text: '#ea580c', colorName: 'orange' as const },
+    { bg: '#fef3c7', text: '#d97706', colorName: 'yellow' as const },
+    { bg: '#dcfce7', text: '#16a34a', colorName: 'green' as const },
+    { bg: '#dbeafe', text: '#2563eb', colorName: 'blue' as const },
+    { bg: '#f3e8ff', text: '#9333ea', colorName: 'purple' as const },
+    { bg: '#fce7f3', text: '#db2777', colorName: 'pink' as const },
+    { bg: '#f3f4f6', text: '#4b5563', colorName: 'gray' as const },
+  ];
+
+  const addCustomTag = () => {
+    const value = tagInput.trim();
+    if (!value) return;
+    if (taskTags.length >= 5) {
+      setTagInput('');
+      return;
+    }
+    const color = TAG_PALETTE[taskTags.length % TAG_PALETTE.length].colorName;
+    const newTags = [...taskTags, { label: value, color }];
+    onUpdateTaskField?.({ tags: newTags }, `adicionou a tag '${value}'`, 'edit');
+    setTagInput('');
+    setShowTagPicker(false);
+  };
+
+  const removeTag = (labelToRemove: string) => {
+    const newTags = taskTags.filter((t) => t.label !== labelToRemove);
+    onUpdateTaskField?.({ tags: newTags }, `removeu a tag '${labelToRemove}'`, 'edit');
+  };
+
+  const changeTagColor = (index: number, newColor: { colorName: string }) => {
+    const newTags = taskTags.map((tag, i) => i === index ? { ...tag, color: newColor.colorName } : tag);
+    onUpdateTaskField?.({ tags: newTags }, `alterou a cor da tag '${newTags[index].label}'`, 'edit');
+  };
 
   const subtasks = (task.subtasksList ?? []).map((item, i) => ({
     id: item.id ?? `subtask-${i}`,
@@ -192,6 +212,22 @@ export function TaskDetailModal({
     } catch {
       return iso;
     }
+  };
+
+  const getInitials = (name: string) => name.split(' ').map((n) => n[0]).join('').substring(0, 2).toUpperCase();
+
+  const filteredTeam = BOARD_DIRECTORY_USERS.filter((member) => member.name.toLowerCase().includes(assigneeSearch.toLowerCase()));
+
+  const toggleAssignee = (memberName: string) => {
+    const isSelected = taskAssignees.some((a) => a.name === memberName);
+    const newAssignees = isSelected ? taskAssignees.filter((a) => a.name !== memberName) : [...taskAssignees, { name: memberName }];
+    const action = isSelected ? `removeu ${memberName} da tarefa` : `atribuiu ${memberName} à tarefa`;
+    onUpdateTaskField?.({ assignees: newAssignees }, action, 'edit');
+  };
+
+  const updateClient = (clientName: string) => {
+    onUpdateTaskField?.({ client: clientName, clientId: MOCK_TASK_FORM_CLIENTS.find(c => c.name === clientName)?.id }, `alterou o cliente da tarefa para '${clientName}'`, 'edit');
+    setShowClientDropdown(false);
   };
 
   const activityItems = [
@@ -260,6 +296,15 @@ export function TaskDetailModal({
         <div className="min-h-0 flex-1 lg:flex" onClick={() => setShowInlineCoverDropdown(false)}>
           <section className="flex min-h-0 min-w-0 flex-1 flex-col border-b border-[#ececec] dark:border-[#2a2a2a] lg:border-b-0 lg:border-r">
             <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+              {!coverImage && (
+                <button
+                  type="button"
+                  onClick={() => coverImageInputRef.current?.click()}
+                  className="mb-5 flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-[#d4d4d4] bg-[#fafafa]/50 py-3 text-[12px] font-semibold text-[#a3a3a3] transition-colors hover:border-[#ff5623]/50 hover:bg-[#fff8f6] hover:text-[#ff5623] dark:border-[#2a2a2a] dark:bg-[#1e1e1e]/50 dark:hover:border-[#ff5623]/40 dark:hover:text-[#ff8c69]"
+                >
+                  <ImagePlus className="h-4 w-4" /> Adicionar capa
+                </button>
+              )}
               {coverImage && (
                 <div className="group relative mb-5 h-48 w-full rounded-xl border border-[#e5e5e5] dark:border-[#2a2a2a]">
                   <img src={coverImage} alt="Capa" className="h-full w-full rounded-xl object-cover" />
@@ -291,9 +336,8 @@ export function TaskDetailModal({
                                   key={a.id}
                                   type="button"
                                   onClick={() => {
-                                    setCoverImage('/src/assets/task-cover-demo.png');
+                                    coverImageInputRef.current?.click();
                                     setShowInlineCoverDropdown(false);
-                                    // Trigger backend save...
                                   }}
                                   className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-[13px] hover:bg-[#f5f5f5] dark:hover:bg-[#232325]"
                                 >
@@ -308,7 +352,7 @@ export function TaskDetailModal({
                     </div>
                     <button
                       type="button"
-                      onClick={() => { setCoverImage(null); setShowInlineCoverDropdown(false); }}
+                      onClick={() => { setCoverImage(null); setShowInlineCoverDropdown(false); onUpdateTaskField?.({ coverImage: null }, 'removeu a capa', 'edit'); }}
                       className="flex items-center gap-1.5 rounded-lg bg-[#f32c2c]/90 px-3 py-1.5 text-[11px] font-semibold text-white shadow transition-all hover:bg-[#f32c2c]"
                     >
                       <Trash2 className="h-3.5 w-3.5" /> Remover
@@ -322,31 +366,292 @@ export function TaskDetailModal({
                 accept="image/*"
                 className="hidden"
                 onChange={(e) => {
-                  if (e.target.files && e.target.files[0]) {
-                    setCoverImage('/src/assets/task-cover-demo.png'); // Mock 
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                      const result = event.target?.result;
+                      if (typeof result === 'string') {
+                        setCoverImage(result);
+                        onUpdateTaskField?.({ coverImage: result }, 'adicionou uma capa', 'edit');
+                      }
+                    };
+                    reader.readAsDataURL(file);
+                    e.target.value = '';
                   }
                 }}
               />
               <div className="space-y-5">
                 {alertInfo && <div className={`flex items-center gap-2 rounded-xl px-4 py-3 ${alertInfo.bg} ${alertInfo.text}`}><alertInfo.icon className="h-4 w-4" /><span className="text-sm font-semibold">{alertInfo.label}</span><span className="ml-auto text-xs">{displayDueDate}</span></div>}
-                <div className="flex flex-wrap gap-2">{taskTags.map((tag, i) => <TagBadge key={i} label={tag.label} color={tag.color} />)}</div>
                 <div>
-                  <h2 className="mb-2 text-xl font-bold">{task.title}</h2>
-                  {descriptionText && <div className="text-sm leading-relaxed text-[#737373] dark:text-[#a3a3a3] [&_p]:mb-3 [&_p:last-child]:mb-0 [&_strong]:font-semibold" dangerouslySetInnerHTML={{ __html: toDisplayRichTextHtml(task.description) }} />}
+                  <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-[#a3a3a3]">Tags</p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {taskTags.map((tag, i) => (
+                      <div key={i} className="group relative flex items-center">
+                        <TagBadge label={tag.label} color={tag.color as any} />
+                        <button
+                          type="button"
+                          onClick={() => removeTag(tag.label)}
+                          className="absolute -right-1.5 -top-1.5 hidden h-4 w-4 items-center justify-center rounded-full bg-[#f32c2c] text-white group-hover:flex shadow-sm z-10"
+                        >
+                          <X className="h-2.5 w-2.5" />
+                        </button>
+                        <button onClick={(e) => { e.stopPropagation(); setShowTagPicker(showTagPicker === i ? false : i); }} className="absolute inset-0 bg-transparent" />
+                        {showTagPicker === i && (
+                            <div className="absolute left-0 top-full z-[200] mt-1.5 rounded-xl border border-[#e5e5e5] bg-white p-2 shadow-xl dark:border-[#2a2a2a] dark:bg-[#1e1e1e]" style={{ minWidth: '120px' }} onClick={(event) => event.stopPropagation()}>
+                              <p className="mb-1.5 px-1 text-[9px] font-semibold uppercase tracking-wider text-[#a3a3a3]">Cor da tag</p>
+                              <div className="grid grid-cols-4 gap-1.5">
+                                {TAG_PALETTE.map((color) => (
+                                  <button
+                                    key={color.bg}
+                                    onClick={() => changeTagColor(i, color)}
+                                    className="h-6 w-6 rounded-lg border-2 transition-transform hover:scale-110"
+                                    style={{ backgroundColor: color.bg, borderColor: tag.color === color.colorName ? '#171717' : 'transparent' }}
+                                  />
+                                ))}
+                              </div>
+                            </div>
+                        )}
+                      </div>
+                    ))}
+                    {taskTags.length < 5 && (
+                      <div className="relative">
+                        <button 
+                          onClick={() => { setShowTagPicker('new'); setTimeout(() => tagInputRef.current?.focus(), 50); }}
+                          className="flex h-6 w-6 items-center justify-center rounded-full border border-dashed border-[#d4d4d4] text-[#a3a3a3] transition-colors hover:border-[#ff5623] hover:text-[#ff5623] dark:border-[#333]"
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                        </button>
+                        {showTagPicker === 'new' && (
+                          <div className="absolute left-0 top-full z-[200] mt-1.5 w-48 rounded-xl border border-[#e5e5e5] bg-white p-2 shadow-xl dark:border-[#2a2a2a] dark:bg-[#1e1e1e]">
+                            <input
+                              ref={tagInputRef}
+                              value={tagInput}
+                              onChange={(e) => setTagInput(e.target.value)}
+                              onKeyDown={(e) => { if (e.key === 'Enter') addCustomTag(); if (e.key === 'Escape') setShowTagPicker(false); }}
+                              placeholder="Nome da tag (Enter)..."
+                              className="w-full rounded-lg border border-[#e5e5e5] bg-[#fafafa] px-3 py-1.5 text-sm outline-none dark:border-[#333] dark:bg-[#141414] dark:text-[#f5f5f5]"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div>
+                  {isEditingTitle ? (
+                    <input
+                      autoFocus
+                      className="mb-2 w-full rounded-xl border border-[#ff5623] bg-white px-3 py-1.5 text-xl font-bold text-[#171717] outline-none dark:bg-[#141414] dark:text-[#f5f5f5]"
+                      value={editTitle}
+                      onChange={(e) => setEditTitle(e.target.value)}
+                      onBlur={() => {
+                        setIsEditingTitle(false);
+                        if (editTitle.trim() && editTitle.trim() !== task.title) {
+                          onUpdateTaskField?.({ title: editTitle.trim() }, 'alterou o título da tarefa', 'edit');
+                        } else {
+                          setEditTitle(task.title);
+                        }
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') e.currentTarget.blur();
+                        if (e.key === 'Escape') {
+                           setEditTitle(task.title);
+                           setIsEditingTitle(false);
+                        }
+                      }}
+                    />
+                  ) : (
+                    <div 
+                      className="group relative mb-2 flex cursor-pointer items-start gap-2 rounded-xl border border-transparent p-1.5 -ml-1.5 transition-colors hover:bg-[#f5f5f5] dark:hover:bg-[#232325]"
+                      onClick={() => setIsEditingTitle(true)}
+                    >
+                      <h2 className="text-xl font-bold dark:text-[#f5f5f5]">{task.title}</h2>
+                      <Edit3 className="mt-1 h-4 w-4 opacity-0 text-[#a3a3a3] transition-opacity group-hover:opacity-100" />
+                    </div>
+                  )}
+
+                  {isEditingDescription ? (
+                    <textarea
+                      autoFocus
+                      className="w-full min-h-[100px] rounded-xl border border-[#ff5623] bg-white px-3 py-2 text-sm text-[#171717] outline-none dark:bg-[#141414] dark:text-[#f5f5f5] resize-y"
+                      value={editDescription}
+                      onChange={(e) => setEditDescription(e.target.value)}
+                      onBlur={() => {
+                        setIsEditingDescription(false);
+                        const trimDesc = editDescription.trim();
+                        if (trimDesc !== getRichTextPlainText(task.description)) {
+                          onUpdateTaskField?.({ description: trimDesc }, 'atualizou a descrição da tarefa', 'edit');
+                        } else {
+                          setEditDescription(getRichTextPlainText(task.description));
+                        }
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Escape') {
+                           setEditDescription(getRichTextPlainText(task.description));
+                           setIsEditingDescription(false);
+                        }
+                      }}
+                    />
+                  ) : (
+                    <div 
+                      className="group relative min-h-[40px] cursor-pointer rounded-xl border border-transparent p-2 -ml-2 transition-colors hover:bg-[#f5f5f5] dark:hover:bg-[#232325]"
+                      onClick={() => setIsEditingDescription(true)}
+                    >
+                      <div className="absolute right-2 top-2 opacity-0 transition-opacity group-hover:opacity-100">
+                        <Edit3 className="h-4 w-4 text-[#a3a3a3]" />
+                      </div>
+                      {descriptionText ? (
+                        <div className="text-sm leading-relaxed text-[#737373] pr-6 dark:text-[#a3a3a3] [&_p]:mb-3 [&_p:last-child]:mb-0 [&_strong]:font-semibold" dangerouslySetInnerHTML={{ __html: toDisplayRichTextHtml(task.description) }} />
+                      ) : (
+                        <span className="text-sm text-[#a3a3a3] italic pr-6">Adicionar uma descrição...</span>
+                      )}
+                    </div>
+                  )}
                 </div>
                 {hasSubtasks && (
                   <div>
                     <div className="mb-3 flex items-center justify-between"><div className="flex items-center gap-2 text-[#987dfe]"><CheckSquare className="h-4 w-4" /><span className="text-sm font-semibold">Subtarefas</span></div><span className="text-sm font-bold">{completedSubtasks}/{totalSubtasks}</span></div>
                     <ProgressBar value={progress} color="success" size="md" showLabel />
                     {subtasks.length > 0 && <div className="mt-3 space-y-2">{subtasks.map((subtask) => <button key={subtask.id} type="button" onClick={() => onToggleSubtask?.(subtask.id)} className="flex w-full items-center gap-3 py-1.5 text-left"><div className={`flex h-4 w-4 items-center justify-center rounded border-2 ${subtask.done ? 'border-[#019364] bg-[#019364]' : 'border-[#d4d4d4]'}`}>{subtask.done && <svg className="h-2.5 w-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}</div><span className={`text-sm ${subtask.done ? 'line-through text-[#a3a3a3]' : 'text-[#525252] dark:text-[#f5f5f5]'}`}>{subtask.label}</span></button>)}</div>}
+                    
+                    {showSubtaskInput ? (
+                       <div className="mt-3 flex items-center gap-2">
+                         <input 
+                           ref={subtaskInputRef} 
+                           value={subtaskInput} 
+                           onChange={(e) => setSubtaskInput(e.target.value)} 
+                           onBlur={() => {
+                             if (!subtaskInput.trim()) setShowSubtaskInput(false);
+                           }}
+                           onKeyDown={(e) => { 
+                             if (e.key === 'Enter') {
+                               const val = subtaskInput.trim(); 
+                               if (val) {
+                                  onUpdateTaskField?.({ subtasksList: [...(task.subtasksList || []), { id: `subtask-${Date.now()}`, title: val, label: val, done: false }] }, `adicionou a subtarefa '${val}'`, 'create');
+                                  setSubtaskInput('');
+                                  setTimeout(() => subtaskInputRef.current?.focus(), 10);
+                               } else {
+                                  setShowSubtaskInput(false);
+                               }
+                             } else if (e.key === 'Escape') setShowSubtaskInput(false);
+                           }} 
+                           placeholder="Nome da subtarefa (Enter)..." 
+                           className="flex-1 rounded-xl border border-[#ff5623] bg-white px-3 py-1.5 text-sm outline-none dark:bg-[#141414] dark:text-[#f5f5f5]" 
+                         />
+                       </div>
+                    ) : (
+                       <button onClick={() => { setShowSubtaskInput(true); setTimeout(() => subtaskInputRef.current?.focus(), 50); }} className="mt-3 flex items-center gap-2 text-sm text-[#737373] hover:text-[#ff5623] transition-colors"><Plus className="h-4 w-4"/> Adicionar subtarefa</button>
+                    )}
                   </div>
                 )}
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div className="rounded-xl bg-[#fafafa] p-4 dark:bg-[#1e1e1e]"><p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-[#a3a3a3]">Data de entrega</p><div className="flex items-center gap-2"><Calendar className={`h-4 w-4 ${dueDateState === 'overdue' ? 'text-[#f32c2c]' : dueDateState === 'warning' ? 'text-[#ca8a04]' : 'text-[#a3a3a3]'}`} /><span className={`text-sm font-semibold ${dueDateState === 'overdue' ? 'text-[#dc2626] dark:text-[#ff4d4f]' : dueDateState === 'warning' ? 'text-[#a16207] dark:text-[#d89b18]' : 'text-[#171717] dark:text-[#f5f5f5]'}`}>{displayDueDate || 'Sem prazo'}</span></div></div>
-                  <div className="rounded-xl bg-[#fafafa] p-4 dark:bg-[#1e1e1e]"><p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-[#a3a3a3]">Cliente</p><button type="button" disabled={!task.client} onClick={() => onOpenClientLibrary?.(task.clientId, task.client)} className="group flex items-center gap-2 text-left disabled:cursor-default"><Building2 className="h-4 w-4 text-[#ff5623]" /><span className="text-sm font-semibold text-[#171717] transition-colors group-hover:text-[#ff5623] dark:text-[#f5f5f5] dark:group-hover:text-[#ff8c69]">{task.client || 'Não definido'}</span></button></div>
+                  <div className="rounded-xl bg-[#fafafa] p-4 dark:bg-[#1e1e1e]">
+                    <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-[#a3a3a3]">Data de entrega</p>
+                    <div className="relative group flex items-center gap-2 rounded-xl border border-transparent p-1.5 -ml-1.5 hover:bg-[#e5e5e5] dark:hover:bg-[#2a2a2a] transition-colors cursor-pointer w-full text-left">
+                      <input 
+                         type="date" 
+                         className="absolute inset-0 opacity-0 z-10 box-border block h-full w-full cursor-pointer" 
+                         value={task.dueDate?.split('T')[0] ?? ''} 
+                         onChange={(e) => {
+                           if(e.target.value) {
+                              onUpdateTaskField?.({ dueDate: e.target.value }, 'alterou a data de entrega', 'edit');
+                           }
+                         }}
+                      />
+                      <Calendar className={`h-4 w-4 shrink-0 transition-colors group-hover:text-[#ff5623] ${dueDateState === 'overdue' ? 'text-[#f32c2c]' : dueDateState === 'warning' ? 'text-[#ca8a04]' : 'text-[#a3a3a3]'}`} />
+                      <span className={`text-sm font-semibold truncate transition-colors group-hover:text-[#ff5623] ${dueDateState === 'overdue' ? 'text-[#dc2626] dark:text-[#ff4d4f]' : dueDateState === 'warning' ? 'text-[#a16207] dark:text-[#d89b18]' : 'text-[#171717] dark:text-[#f5f5f5]'}`}>{displayDueDate || 'Não definido'}</span>
+                    </div>
+                  </div>
+                  <div className="rounded-xl bg-[#fafafa] p-4 dark:bg-[#1e1e1e]">
+                    <div className="relative">
+                      <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-[#a3a3a3]">Cliente</p>
+                      <button type="button" disabled={!task.client} onClick={() => setShowClientDropdown((curr) => !curr)} className="group flex items-center gap-2 text-left disabled:cursor-default w-full rounded-xl border border-transparent p-1.5 -ml-1.5 hover:bg-[#e5e5e5] dark:hover:bg-[#2a2a2a] transition-colors">
+                        <Building2 className={`h-4 w-4 shrink-0 ${task.client ? 'text-[#ff5623]' : 'text-[#a3a3a3] group-hover:text-[#ff5623]'}`} />
+                        <span className="text-sm font-semibold text-[#171717] transition-colors group-hover:text-[#ff5623] dark:text-[#f5f5f5] dark:group-hover:text-[#ff8c69] flex-1 truncate">{task.client || 'Não definido'}</span>
+                      </button>
+                      {showClientDropdown && (
+                        <div className="absolute top-full right-0 z-[200] mt-1 w-full min-w-[200px] overflow-hidden rounded-xl border border-[#e5e5e5] bg-white shadow-xl dark:border-[#2a2a2a] dark:bg-[#1e1e1e]">
+                          <div className="max-h-[200px] overflow-y-auto py-1">
+                            {MOCK_TASK_FORM_CLIENTS.map((client) => {
+                               const isSelected = task.client === client.name;
+                               return (
+                                 <button key={client.id} onClick={() => updateClient(client.name)} className={`flex w-full items-center justify-between px-3 py-2 transition-colors ${isSelected ? 'bg-[#ff5623]/5 text-[#ff5623]' : 'hover:bg-[#f5f5f5] dark:hover:bg-[#2a2a2a]'}`}>
+                                   <div className="flex items-center gap-2">
+                                     <div className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: client.color }} />
+                                     <span className={`text-sm text-left truncate font-medium ${isSelected ? 'text-[#ff5623]' : 'text-[#171717] dark:text-[#f5f5f5]'}`}>{client.name}</span>
+                                   </div>
+                                   {isSelected && <Check className="h-3.5 w-3.5 shrink-0" />}
+                                 </button>
+                               )
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
                 <p className="-mt-2 flex items-center gap-1.5 text-[11px] text-[#a3a3a3]"><Clock className="h-3 w-3" />Criado em {task.createdAt || '10 Mar, 2026'} às 09:00</p>
-                <div><p className="mb-3 text-[10px] font-semibold uppercase tracking-wider text-[#a3a3a3]">Responsáveis</p><div className="flex items-center gap-3"><AvatarStack avatars={taskAssignees} max={6} size="md" /></div></div>
+                <div className="relative">
+                  <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-[#a3a3a3]">Responsáveis</p>
+                  <div className="flex min-h-[40px] items-center gap-2 rounded-xl border border-transparent hover:border-[#e5e5e5] p-1.5 -ml-1.5 dark:hover:border-[#2a2a2a] transition-colors cursor-pointer group" onClick={() => { setShowAssigneeDropdown((curr) => !curr); setTimeout(() => assigneeSearchRef.current?.focus(), 50); }}>
+                    {taskAssignees.length > 0 ? (
+                      <div className="flex flex-1 items-center gap-2">
+                        <AvatarStack avatars={taskAssignees} max={6} size="md" />
+                        <div className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center h-6 w-6 rounded-full bg-[#f5f5f5] dark:bg-[#232325]">
+                           <Plus className="h-3.5 w-3.5 text-[#737373] dark:text-[#a3a3a3]" />
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-dashed border-[#d4d4d4] text-[#737373] transition-colors hover:border-[#ff5623]/50 hover:text-[#ff5623] dark:border-[#3a3a3a] dark:text-[#b8b8bc]">
+                          <Plus className="h-4 w-4" />
+                        </div>
+                        <span className="text-sm text-[#b8b8bc]">Adicionar responsáveis</span>
+                      </div>
+                    )}
+                  </div>
+                  {showAssigneeDropdown && (
+                    <div className="absolute top-full z-[200] mt-1 w-full max-w-[280px] overflow-hidden rounded-xl border border-[#e5e5e5] bg-white shadow-xl dark:border-[#2a2a2a] dark:bg-[#1e1e1e]">
+                      <div className="border-b border-[#f5f5f5] p-2 dark:border-[#2a2a2a]">
+                        <div className="flex items-center gap-2 px-2">
+                          <Search className="h-3.5 w-3.5 shrink-0 text-[#a3a3a3]" />
+                          <input
+                            ref={assigneeSearchRef}
+                            type="text"
+                            value={assigneeSearch}
+                            onChange={(event) => setAssigneeSearch(event.target.value)}
+                            placeholder="Buscar membro..."
+                            className="flex-1 bg-transparent text-sm text-[#171717] placeholder:text-[#d4d4d4] focus:outline-none dark:text-[#f5f5f5]"
+                          />
+                        </div>
+                      </div>
+                      <div className="max-h-[200px] overflow-y-auto py-1">
+                        {filteredTeam.map((member) => {
+                          const isSelected = taskAssignees.some((a) => a.name === member.name);
+                          return (
+                            <button
+                              key={member.id}
+                              onClick={() => toggleAssignee(member.name)}
+                              className={`flex w-full items-center justify-between px-4 py-2.5 transition-colors ${isSelected ? 'bg-[#ff5623]/5' : 'hover:bg-[#f5f5f5] dark:hover:bg-[#2a2a2a]'}`}
+                            >
+                              <div className="flex items-center gap-2.5">
+                                <div className="flex h-7 w-7 items-center justify-center rounded-full text-[10px] font-bold text-white flex-shrink-0" style={{ backgroundColor: member.color }}>
+                                  {getInitials(member.name)}
+                                </div>
+                                <div className="text-left overflow-hidden">
+                                  <p className="text-sm font-medium text-[#171717] dark:text-[#f5f5f5] truncate">{member.name}</p>
+                                  <p className="text-[10px] text-[#a3a3a3] truncate">{member.role}</p>
+                                </div>
+                              </div>
+                              {isSelected && <Check className="h-4 w-4 text-[#ff5623] flex-shrink-0" />}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
                 <div className="space-y-4">
                   <div className="mb-2 flex items-center justify-between">
                     <label className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-[#a3a3a3]">
