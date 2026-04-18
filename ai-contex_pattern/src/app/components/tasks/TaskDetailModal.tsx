@@ -585,6 +585,18 @@ export function TaskDetailModal({
                 </div>
                 {/* ── Subtarefas ── */}
                 <div>
+                  {localSubtasks.length > 0 && (
+                    <div className="mb-3 flex flex-col gap-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-[#987dfe]">
+                          <CheckSquare className="h-4 w-4" />
+                          <span className="text-sm font-semibold">Subtarefas</span>
+                        </div>
+                        <span className="text-sm font-bold text-[#525252] dark:text-[#a3a3a3]">{doneCount}/{localSubtasks.length}</span>
+                      </div>
+                      <ProgressBar value={localSubtasks.length > 0 ? Math.round((doneCount / localSubtasks.length) * 100) : 0} color="success" size="md" showLabel />
+                    </div>
+                  )}
                   <div className="mt-1 space-y-2">
                     {localSubtasks.map((subtask) => (
                       <div
