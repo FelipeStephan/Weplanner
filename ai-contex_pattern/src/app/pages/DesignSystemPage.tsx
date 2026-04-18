@@ -360,7 +360,7 @@ export function DesignSystemPage({ notifications, onOpenBoard }: DesignSystemPag
                       Componente para board e Visão Geral, com foco em leitura rápida, filtros objetivos e acesso direto à ação.
                     </p>
                   </div>
-                  <AvatarStack users={TEAM.slice(0, 2)} max={2} />
+                  <AvatarStack avatars={TEAM.slice(0, 2)} max={2} />
                 </div>
                 <div className="mt-4 flex flex-wrap items-center gap-4 text-sm text-[#666666] dark:text-[#a3a3a3]">
                   <span className="inline-flex items-center gap-2"><Briefcase className="h-4 w-4" /> Desenvolvimento e tratativas de bugs</span>
