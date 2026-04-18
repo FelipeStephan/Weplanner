@@ -74,6 +74,7 @@ export function TaskDetailModal({
   const [editDescription, setEditDescription] = useState(getRichTextPlainText(task.description));
   const [editDueDate, setEditDueDate] = useState(() => task.dueDate?.split('T')[0] ?? '');
   const [editDueTime, setEditDueTime] = useState(() => task.dueDate?.includes('T') ? task.dueDate.split('T')[1]?.slice(0, 5) : '');
+  const [isEditingDueDate, setIsEditingDueDate] = useState(false);
   
   // Tag States
   const [showTagPicker, setShowTagPicker] = useState<string | number | false>(false);
@@ -116,6 +117,7 @@ export function TaskDetailModal({
     setEditDescription(getRichTextPlainText(task.description));
     setEditDueDate(task.dueDate?.split('T')[0] ?? '');
     setEditDueTime(task.dueDate?.includes('T') ? task.dueDate.split('T')[1]?.slice(0, 5) : '');
+    setIsEditingDueDate(false);
     setIsEditingTitle(false);
     setIsEditingDescription(false);
     setShowTagPicker(false);
@@ -560,31 +562,52 @@ export function TaskDetailModal({
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div className="rounded-xl bg-[#fafafa] p-4 dark:bg-[#1e1e1e]">
                     <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-[#a3a3a3]">Data de entrega</p>
-                    <div className="grid grid-cols-[1fr_96px] gap-2">
-                      <input
-                        type="date"
-                        value={editDueDate}
-                        onChange={(e) => {
-                          setEditDueDate(e.target.value);
-                          if (e.target.value) {
-                            const time = editDueTime || '00:00';
-                            onUpdateTaskField?.({ dueDate: `${e.target.value}T${time}` }, 'alterou a data de entrega', 'edit');
-                          }
-                        }}
-                        className="h-9 w-full rounded-xl border border-[#e5e5e5] bg-white px-3 text-sm text-[#171717] transition-all focus:border-[#ff5623] focus:outline-none focus:ring-2 focus:ring-[#ff5623]/20 dark:border-[#2a2a2a] dark:bg-[#1e1e1e] dark:text-[#f5f5f5]"
-                      />
-                      <input
-                        type="time"
-                        value={editDueTime}
-                        onChange={(e) => {
-                          setEditDueTime(e.target.value);
-                          if (editDueDate) {
-                            onUpdateTaskField?.({ dueDate: `${editDueDate}T${e.target.value}` }, 'alterou o horário de entrega', 'edit');
-                          }
-                        }}
-                        className="h-9 w-full rounded-xl border border-[#e5e5e5] bg-white px-2 text-sm text-[#171717] transition-all focus:border-[#ff5623] focus:outline-none focus:ring-2 focus:ring-[#ff5623]/20 dark:border-[#2a2a2a] dark:bg-[#1e1e1e] dark:text-[#f5f5f5]"
-                      />
-                    </div>
+                    {isEditingDueDate ? (
+                      <div className="flex flex-col gap-1.5">
+                        <div className="grid grid-cols-[1fr_96px] gap-2">
+                          <input
+                            autoFocus
+                            type="date"
+                            value={editDueDate}
+                            onChange={(e) => {
+                              setEditDueDate(e.target.value);
+                              if (e.target.value) {
+                                const time = editDueTime || '00:00';
+                                onUpdateTaskField?.({ dueDate: `${e.target.value}T${time}` }, 'alterou a data de entrega', 'edit');
+                              }
+                            }}
+                            className="h-9 w-full rounded-xl border border-[#e5e5e5] bg-white px-3 text-sm text-[#171717] transition-all focus:border-[#ff5623] focus:outline-none focus:ring-2 focus:ring-[#ff5623]/20 dark:border-[#2a2a2a] dark:bg-[#1e1e1e] dark:text-[#f5f5f5]"
+                          />
+                          <input
+                            type="time"
+                            value={editDueTime}
+                            onChange={(e) => {
+                              setEditDueTime(e.target.value);
+                              if (editDueDate) {
+                                onUpdateTaskField?.({ dueDate: `${editDueDate}T${e.target.value}` }, 'alterou o horário de entrega', 'edit');
+                              }
+                            }}
+                            className="h-9 w-full rounded-xl border border-[#e5e5e5] bg-white px-2 text-sm text-[#171717] transition-all focus:border-[#ff5623] focus:outline-none focus:ring-2 focus:ring-[#ff5623]/20 dark:border-[#2a2a2a] dark:bg-[#1e1e1e] dark:text-[#f5f5f5]"
+                          />
+                        </div>
+                        <button
+                          onClick={() => setIsEditingDueDate(false)}
+                          className="self-start text-[11px] font-semibold text-[#a3a3a3] hover:text-[#ff5623] transition-colors"
+                        >
+                          ← Concluído
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setIsEditingDueDate(true)}
+                        className="group flex items-center gap-2 rounded-xl border border-transparent p-1.5 -ml-1.5 hover:bg-[#e5e5e5] dark:hover:bg-[#2a2a2a] transition-colors w-full text-left"
+                      >
+                        <Calendar className={`h-4 w-4 shrink-0 transition-colors group-hover:text-[#ff5623] ${dueDateState === 'overdue' ? 'text-[#f32c2c]' : dueDateState === 'warning' ? 'text-[#ca8a04]' : 'text-[#a3a3a3]'}`} />
+                        <span className={`text-sm font-semibold truncate transition-colors group-hover:text-[#ff5623] ${dueDateState === 'overdue' ? 'text-[#dc2626] dark:text-[#ff4d4f]' : dueDateState === 'warning' ? 'text-[#a16207] dark:text-[#d89b18]' : 'text-[#171717] dark:text-[#f5f5f5]'}`}>
+                          {displayDueDate || 'Não definido'}
+                        </span>
+                      </button>
+                    )}
                   </div>
                   <div className="rounded-xl bg-[#fafafa] p-4 dark:bg-[#1e1e1e]">
                     <div className="relative">
