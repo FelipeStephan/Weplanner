@@ -1,9 +1,10 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Calendar, ChevronLeft, ChevronRight, Clock, FolderKanban, Plus, Users } from 'lucide-react';
 import type { WorkflowStatus } from '../../../domain/kanban/contracts';
 import { formatTaskDueDate, parseTaskDueDate } from '../../utils/taskDueDate';
 import { Button } from '../ui/button';
 import { cn } from '../ui/utils';
+import { CalendarTaskPreview } from './CalendarTaskPreview';
 
 type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
 
@@ -117,6 +118,7 @@ export function BoardCalendarView({
   onCreateTaskAtDate,
 }: BoardCalendarViewProps) {
   const today = useMemo(() => startOfDay(new Date()), []);
+  const [hoveredTask, setHoveredTask] = useState<{ task: CalendarBoardTask; rect: DOMRect } | null>(null);
 
   const { monthDays, tasksByDay, monthTaskCount, monthTasksChronological, visibleTaskList } = useMemo(() => {
     const monthStart = startOfMonth(month);
@@ -321,6 +323,10 @@ export function BoardCalendarView({
                                 event.stopPropagation();
                                 onOpenTask(task.id);
                               }}
+                              onMouseEnter={(e) => {
+                                setHoveredTask({ task, rect: e.currentTarget.getBoundingClientRect() });
+                              }}
+                              onMouseLeave={() => setHoveredTask(null)}
                               className="w-full rounded-2xl border border-transparent px-3 py-2 text-left transition-transform hover:-translate-y-[1px] hover:border-[#E5E7E4] hover:bg-white dark:hover:border-[#2D2F30] dark:hover:bg-[#1A1B1C]"
                               style={{
                                 backgroundColor: withAlpha(task.columnAccentColor, '18') ?? '#FFF4EE',
@@ -494,6 +500,11 @@ export function BoardCalendarView({
           </section>
         </aside>
       </div>
+
+      {/* Hover preview — rendered above everything, pointer-events-none */}
+      {hoveredTask && (
+        <CalendarTaskPreview task={hoveredTask.task} anchorRect={hoveredTask.rect} />
+      )}
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { FolderKanban, Pin, Search, Users, Plus, Edit3 } from 'lucide-react';
+import { FolderKanban, Pin, Search, Users, Plus, Edit3, LayoutGrid } from 'lucide-react';
 import type { BoardRecord } from '../../domain/kanban/contracts';
 
 interface BoardsDirectoryPageProps {
@@ -16,91 +16,78 @@ interface BoardsDirectoryPageProps {
 function BoardCard({
   board,
   isPinned,
-  isActive,
   onTogglePin,
   onOpen,
 }: {
   board: BoardRecord;
   isPinned: boolean;
-  isActive?: boolean;
   onTogglePin: () => void;
   onOpen: () => void;
 }) {
   const memberCount = board.access.memberUserIds.length;
 
   return (
-    <article className="group relative flex flex-col rounded-2xl border border-[#e5e5e5] bg-white p-5 shadow-sm transition-all hover:shadow-md dark:border-[#2a2a2a] dark:bg-[#111111]">
+    <article
+      onClick={onOpen}
+      className="group relative flex cursor-pointer flex-col rounded-2xl border border-[#EBEBEB] bg-white p-5 shadow-[0_2px_8px_rgba(0,0,0,0.04)] transition-all hover:border-[#ff5623]/25 hover:shadow-[0_8px_24px_-8px_rgba(255,86,35,0.14)] dark:border-[#252525] dark:bg-[#141414]"
+    >
       {/* Top row */}
       <div className="mb-4 flex items-start justify-between">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#fff3ef] dark:bg-[#2a1508]">
+        <div className="flex h-[42px] w-[42px] items-center justify-center rounded-[14px] bg-[#FFF3EF] dark:bg-[#2a1508]">
           <FolderKanban className="h-5 w-5 text-[#ff5623]" />
         </div>
-        <div className="flex items-center gap-1">
-          {/* Pin button */}
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); onTogglePin(); }}
-            title={isPinned ? 'Remover do sidebar' : 'Fixar no sidebar'}
-            className={`flex h-7 w-7 items-center justify-center rounded-lg transition-all ${
-              isPinned
-                ? 'bg-[#fff3ef] text-[#ff5623] dark:bg-[#2a1508]'
-                : 'text-[#d4d4d4] hover:bg-[#f5f5f5] hover:text-[#ff5623] dark:text-[#3a3a3a] dark:hover:bg-[#1e1e1e] dark:hover:text-[#ff8c69]'
-            }`}
-          >
-            <Pin className={`h-3.5 w-3.5 transition-transform ${isPinned ? 'rotate-45' : ''}`} />
-          </button>
-          {/* Edit button */}
-          <button
-            type="button"
-            className="flex h-7 items-center gap-1 rounded-lg border border-[#e5e5e5] bg-white px-2.5 text-[11px] font-semibold text-[#737373] transition-colors hover:border-[#d4d4d4] hover:text-[#171717] dark:border-[#2a2a2a] dark:bg-[#1a1a1a] dark:text-[#a3a3a3] dark:hover:text-[#f5f5f5]"
-          >
-            <Edit3 className="h-3 w-3" />
-            Editar
-          </button>
-        </div>
+
+        {/* Pin button */}
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onTogglePin(); }}
+          title={isPinned ? 'Remover do sidebar' : 'Fixar no sidebar'}
+          className={`flex h-8 w-8 items-center justify-center rounded-xl transition-all ${
+            isPinned
+              ? 'bg-[#FFF3EF] text-[#ff5623] dark:bg-[#2a1508]'
+              : 'text-[#CFCFCF] hover:bg-[#F5F5F5] hover:text-[#ff5623] dark:text-[#383838] dark:hover:bg-[#1E1E1E] dark:hover:text-[#ff8c69]'
+          }`}
+        >
+          <Pin className={`h-3.5 w-3.5 transition-transform ${isPinned ? 'rotate-45' : ''}`} />
+        </button>
       </div>
 
       {/* Name */}
-      <h3 className="mb-1 text-[15px] font-bold text-[#171717] dark:text-[#f5f5f5]">
+      <h3 className="mb-1.5 text-[15px] font-bold tracking-[-0.01em] text-[#171717] dark:text-[#f0f0f0]">
         {board.name}
       </h3>
 
       {/* Description */}
-      <p className="mb-4 flex-1 text-[13px] leading-relaxed text-[#a3a3a3]">
+      <p className="mb-4 flex-1 text-[13px] leading-relaxed text-[#9E9E9E]">
         {board.description || 'Sem descrição'}
       </p>
 
       {/* Footer */}
-      <div className="flex items-center justify-between border-t border-[#f5f5f5] pt-4 dark:border-[#1e1e1e]">
-        <span className="flex items-center gap-1.5 text-[12px] text-[#a3a3a3]">
+      <div className="flex items-center justify-between border-t border-[#F0F0F0] pt-4 dark:border-[#1E1E1E]">
+        <span className="flex items-center gap-1.5 text-[12px] text-[#ADADAD]">
           <Users className="h-3.5 w-3.5" />
           {memberCount} {memberCount === 1 ? 'membro' : 'membros'}
         </span>
-        <button
-          type="button"
-          onClick={onOpen}
-          className="rounded-lg px-3 py-1.5 text-[12px] font-semibold text-[#525252] transition-colors hover:bg-[#f5f5f5] hover:text-[#ff5623] dark:text-[#a3a3a3] dark:hover:bg-[#1e1e1e] dark:hover:text-[#ff8c69]"
-        >
-          Abrir board
-        </button>
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={(e) => e.stopPropagation()}
+            className="flex h-7 items-center gap-1 rounded-lg border border-[#E8E8E8] bg-white px-2.5 text-[11px] font-semibold text-[#737373] transition-colors hover:border-[#D4D4D4] hover:text-[#171717] dark:border-[#2a2a2a] dark:bg-[#1a1a1a] dark:text-[#a3a3a3] dark:hover:text-[#f5f5f5]"
+          >
+            <Edit3 className="h-3 w-3" />
+            Editar
+          </button>
+          <span className="rounded-lg bg-[#F5F5F5] px-2.5 py-1 text-[11px] font-semibold text-[#ff5623] transition-colors group-hover:bg-[#FFF3EF] dark:bg-[#1E1E1E] dark:group-hover:bg-[#2a1508]">
+            Abrir →
+          </span>
+        </div>
       </div>
 
-      {/* Active indicator */}
-      {isActive && (
-        <span className="absolute left-0 top-4 h-8 w-1 rounded-r-full bg-[#ff5623]" />
+      {/* Pinned indicator strip */}
+      {isPinned && (
+        <span className="absolute left-0 top-5 h-6 w-[3px] rounded-r-full bg-[#ff5623]" />
       )}
     </article>
-  );
-}
-
-// ─── Stat Card ────────────────────────────────────────────────────────────────
-
-function StatCard({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="rounded-2xl border border-[#e5e5e5] bg-white p-5 dark:border-[#2a2a2a] dark:bg-[#111111]">
-      <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-[#a3a3a3]">{label}</p>
-      <p className="text-[28px] font-bold text-[#171717] dark:text-[#f5f5f5]">{value}</p>
-    </div>
   );
 }
 
@@ -132,53 +119,101 @@ export function BoardsDirectoryPage({
   );
 
   return (
-    <div className="min-h-screen bg-[#f5f5f7] dark:bg-[#0a0a0a]">
-      {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <div className="border-b border-[#e5e5e5] bg-white px-8 py-6 dark:border-[#2a2a2a] dark:bg-[#111111]">
+    <div className="min-h-screen bg-[#F5F5F7] dark:bg-[#0a0a0a]">
+      {/* ── Hero header with stats ──────────────────────────────────────────── */}
+      <div className="px-8 pb-0 pt-8">
         <div className="mx-auto max-w-[1200px]">
-          <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-[#a3a3a3]">
-            Workspace Boards
-          </p>
-          <div className="flex items-center justify-between gap-4">
-            <h1 className="text-3xl font-bold text-[#171717] dark:text-[#f5f5f5]">Boards</h1>
-            {canCreateBoards && onCreateBoard && (
-              <button
-                type="button"
-                onClick={onCreateBoard}
-                className="flex items-center gap-2 rounded-xl bg-[#171717] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#333] dark:bg-white dark:text-[#171717] dark:hover:bg-[#e5e5e5]"
-              >
-                <Plus className="h-4 w-4" />
-                Criar board
-              </button>
-            )}
+          <div className="overflow-hidden rounded-[28px] border border-[#EBEBEB] bg-white shadow-[0_4px_24px_-8px_rgba(0,0,0,0.08)] dark:border-[#252525] dark:bg-[#141414]">
+            {/* Header row */}
+            <div className="flex items-center justify-between gap-4 border-b border-[#F0F0F0] px-8 py-6 dark:border-[#1E1E1E]">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#FFF3EF] dark:bg-[#2a1508]">
+                  <LayoutGrid className="h-5 w-5 text-[#ff5623]" />
+                </div>
+                <div>
+                  <h1 className="text-[20px] font-bold tracking-[-0.02em] text-[#171717] dark:text-white">
+                    Boards
+                  </h1>
+                  <p className="text-[13px] text-[#9E9E9E]">
+                    Gerencie e organize seus ambientes de trabalho
+                  </p>
+                </div>
+              </div>
+
+              {canCreateBoards && onCreateBoard && (
+                <button
+                  type="button"
+                  onClick={onCreateBoard}
+                  className="flex items-center gap-2 rounded-[14px] bg-[#171717] px-4 py-2.5 text-[13px] font-semibold text-white transition-colors hover:bg-[#333] dark:bg-white dark:text-[#171717] dark:hover:bg-[#e5e5e5]"
+                >
+                  <Plus className="h-4 w-4" />
+                  Criar board
+                </button>
+              )}
+            </div>
+
+            {/* Stats row */}
+            <div className="grid grid-cols-3 divide-x divide-[#F0F0F0] dark:divide-[#1E1E1E]">
+              <div className="px-8 py-5">
+                <p className="mb-0.5 text-[11px] font-semibold uppercase tracking-widest text-[#ADADAD]">
+                  Total de boards
+                </p>
+                <p className="text-[28px] font-bold tracking-[-0.03em] text-[#171717] dark:text-white">
+                  {boards.length}
+                </p>
+              </div>
+              <div className="px-8 py-5">
+                <p className="mb-0.5 text-[11px] font-semibold uppercase tracking-widest text-[#ADADAD]">
+                  Membros vinculados
+                </p>
+                <p className="text-[28px] font-bold tracking-[-0.03em] text-[#171717] dark:text-white">
+                  {uniqueMembers}
+                </p>
+              </div>
+              <div className="px-8 py-5">
+                <p className="mb-0.5 text-[11px] font-semibold uppercase tracking-widest text-[#ADADAD]">
+                  Fixados no sidebar
+                </p>
+                <p className="text-[28px] font-bold tracking-[-0.03em] text-[#ff5623]">
+                  {pinnedIds.length}
+                </p>
+              </div>
+            </div>
           </div>
-          <p className="mt-1 text-sm text-[#a3a3a3]">
-            Escolha um board para abrir o Kanban ou crie um novo ambiente.
-          </p>
         </div>
       </div>
 
+      {/* ── Content ─────────────────────────────────────────────────────────── */}
       <div className="mx-auto max-w-[1200px] px-8 py-6">
-        {/* ── Stats ──────────────────────────────────────────────────────────── */}
-        <div className="mb-6 grid grid-cols-3 gap-4">
-          <StatCard label="Total de boards" value={boards.length} />
-          <StatCard label="Membros vinculados" value={uniqueMembers} />
-          <StatCard label="Resultado da busca" value={filtered.length} />
-        </div>
-
-        {/* ── Search ─────────────────────────────────────────────────────────── */}
-        <div className="mb-6 flex items-center gap-3 rounded-2xl border border-[#e5e5e5] bg-white px-4 py-3 dark:border-[#2a2a2a] dark:bg-[#111111]">
-          <Search className="h-4 w-4 shrink-0 text-[#a3a3a3]" />
+        {/* Search */}
+        <div className="mb-6 flex items-center gap-3 rounded-2xl border border-[#EBEBEB] bg-white px-4 py-3 shadow-[0_2px_8px_rgba(0,0,0,0.04)] dark:border-[#252525] dark:bg-[#141414]">
+          <Search className="h-4 w-4 shrink-0 text-[#ADADAD]" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Buscar board por nome ou descrição..."
-            className="flex-1 bg-transparent text-sm text-[#171717] placeholder:text-[#c7c7c7] focus:outline-none dark:text-[#f5f5f5]"
+            className="flex-1 bg-transparent text-[13px] text-[#171717] placeholder:text-[#CFCFCF] focus:outline-none dark:text-[#f5f5f5]"
           />
+          {search && (
+            <button
+              type="button"
+              onClick={() => setSearch('')}
+              className="text-[11px] font-semibold text-[#ff5623] hover:underline"
+            >
+              Limpar
+            </button>
+          )}
         </div>
 
-        {/* ── Grid ───────────────────────────────────────────────────────────── */}
+        {/* Section label */}
+        {filtered.length > 0 && (
+          <p className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-[#ADADAD]">
+            {search ? `${filtered.length} resultado${filtered.length !== 1 ? 's' : ''}` : 'Todos os boards'}
+          </p>
+        )}
+
+        {/* Grid */}
         {filtered.length > 0 ? (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {filtered.map((board) => (
@@ -192,9 +227,9 @@ export function BoardsDirectoryPage({
             ))}
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[#e5e5e5] py-20 dark:border-[#2a2a2a]">
-            <FolderKanban className="mb-3 h-8 w-8 text-[#d4d4d4]" />
-            <p className="text-sm font-semibold text-[#a3a3a3]">Nenhum board encontrado</p>
+          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[#E5E5E5] py-20 dark:border-[#252525]">
+            <FolderKanban className="mb-3 h-8 w-8 text-[#D4D4D4]" />
+            <p className="text-[13px] font-semibold text-[#ADADAD]">Nenhum board encontrado</p>
             {search && (
               <button
                 type="button"
@@ -207,9 +242,9 @@ export function BoardsDirectoryPage({
           </div>
         )}
 
-        {/* ── Pin hint ───────────────────────────────────────────────────────── */}
+        {/* Pin hint */}
         {boards.length > 0 && pinnedIds.length === 0 && (
-          <p className="mt-6 flex items-center gap-1.5 text-[12px] text-[#c7c7c7] dark:text-[#3a3a3a]">
+          <p className="mt-6 flex items-center gap-1.5 text-[12px] text-[#CFCFCF] dark:text-[#3a3a3a]">
             <Pin className="h-3 w-3" />
             Clique no ícone de pin em um board para fixá-lo no sidebar.
           </p>
