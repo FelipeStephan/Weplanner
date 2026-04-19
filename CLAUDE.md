@@ -340,3 +340,39 @@ const [xxxOpen, setXxxOpen]   // dropdowns/popovers
 
 ## Documentação detalhada
 Para detalhes completos consulte `ai-contex_pattern/DESIGN_SYSTEM.md` e `ai-contex_pattern/COMPONENT_LIBRARY.md`.
+
+---
+
+## Registro de atualizações (Changelog)
+
+Todas as mudanças do projeto são documentadas em dois lugares complementares:
+
+| Arquivo | Uso |
+|---------|-----|
+| `ai-contex_pattern/src/app/data/changelog.ts` | Fonte de verdade — dados estruturados (TypeScript) |
+| `CHANGELOG.md` | Leitura rápida — formato Markdown universal |
+
+### Como ler o changelog.ts
+Cada entrada segue a hierarquia: **Release → Módulo → Mudança**.
+
+```
+ChangelogRelease
+  version   — ex: "0.4.2"
+  date      — ex: "19 Abr 2026"
+  summary   — frase curta do que a release representa
+  modules[]
+    area    — nome do módulo afetado, ex: "Tarefas — Modal de Detalhes"
+    changes[]
+      type        — "feature" | "fix" | "improvement" | "refactor" | "design"
+      title       — o quê mudou
+      description — o porquê técnico da mudança (contexto para o Dev AI)
+      files[]     — caminhos relativos a src/app/ dos arquivos tocados
+```
+
+### Como registrar uma nova release
+Adicione um objeto no **início** do array `CHANGELOG_RELEASES` em `changelog.ts`.
+Depois atualize o `CHANGELOG.md` com o mesmo conteúdo em Markdown.
+
+### Página visual
+A página de atualizações está disponível em `#/changelog` dentro do app,
+renderizada pelo componente `src/app/pages/ChangelogPage.tsx`.
