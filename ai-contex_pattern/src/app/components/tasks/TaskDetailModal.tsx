@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import {
   X,
+  Bold,
   Calendar,
   Paperclip,
   MessageCircle,
@@ -24,6 +25,8 @@ import {
   ChevronDown,
   Diamond,
   FileType,
+  Highlighter,
+  Italic,
   Trash2,
   Plus,
   Search,
@@ -39,7 +42,7 @@ import { formatTaskDueDate, getTaskDueDateState, getTaskDueDateInputParts, build
 import { getRichTextPlainText, toDisplayRichTextHtml } from '../../utils/richText';
 import { BOARD_DIRECTORY_USERS } from '../../../demo/boardDirectory';
 import type { TaskDetailComment as Comment, TaskDetailAttachment as Attachment, TaskDetailModalProps } from '../../types/taskDetail';
-import { MOCK_TASK_FORM_CLIENTS } from '../../data/taskForm';
+import { MOCK_TASK_FORM_CLIENTS, FONT_SIZES, TEXT_COLORS, HIGHLIGHT_COLORS } from '../../data/taskForm';
 import { MOCK_TASK_FORM_TEAM } from '../../../mocks/taskForm';
 import { DateTimePicker } from '../shared/DateTimePicker';
 import { compressImage } from '../../utils/imageUtils';
@@ -76,6 +79,13 @@ export function TaskDetailModal({
   const [editTitle, setEditTitle] = useState(task.title);
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [editDescription, setEditDescription] = useState(getRichTextPlainText(task.description));
+  // Rich text editor states (detail description)
+  const descDetailRef = useRef<HTMLDivElement>(null);
+  const [detailFontSize, setDetailFontSize] = useState('14px');
+  const [detailTextColor, setDetailTextColor] = useState('#171717');
+  const [detailHighlightColor, setDetailHighlightColor] = useState('transparent');
+  const [showDetailColorPicker, setShowDetailColorPicker] = useState(false);
+  const [showDetailHighlightPicker, setShowDetailHighlightPicker] = useState(false);
   const [editDueDate, setEditDueDate] = useState(() => task.dueDate?.split('T')[0] ?? '');
   const [editDueTime, setEditDueTime] = useState(() => task.dueDate?.includes('T') ? task.dueDate.split('T')[1]?.slice(0, 5) : '');
   const [isEditingDueDate, setIsEditingDueDate] = useState(false);
@@ -154,7 +164,48 @@ export function TaskDetailModal({
     setSubtaskAssigneeSearch('');
   }, [isOpen, task]);
 
+  // Initialize the description editor with the task's existing HTML when editing starts
+  useEffect(() => {
+    if (isEditingDescription && descDetailRef.current) {
+      descDetailRef.current.innerHTML = task.description || '';
+      // Move cursor to end
+      const range = document.createRange();
+      const sel = window.getSelection();
+      range.selectNodeContents(descDetailRef.current);
+      range.collapse(false);
+      sel?.removeAllRanges();
+      sel?.addRange(range);
+      descDetailRef.current.focus();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEditingDescription, task.description]);
+
   if (!isOpen) return null;
+
+  const applyFormatDetail = (command: string, value?: string) => {
+    descDetailRef.current?.focus();
+    document.execCommand(command, false, value);
+  };
+
+  const fontSizeToExecValue = (size: string): string => {
+    const map: Record<string, string> = { '12px': '1', '14px': '2', '16px': '3', '18px': '4', '20px': '5', '24px': '6' };
+    return map[size] ?? '2';
+  };
+
+  const saveDetailDescription = () => {
+    setIsEditingDescription(false);
+    const html = descDetailRef.current?.innerHTML ?? '';
+    const isEmpty = !html || html === '<br>' || html === '<div><br></div>' || html.trim() === '';
+    const newVal = isEmpty ? '' : html.trim();
+    if (newVal !== (task.description || '')) {
+      onUpdateTaskField?.({ description: newVal }, 'atualizou a descrição da tarefa', 'edit');
+    }
+    setDetailFontSize('14px');
+    setDetailTextColor('#171717');
+    setDetailHighlightColor('transparent');
+    setShowDetailColorPicker(false);
+    setShowDetailHighlightPicker(false);
+  };
 
   // ── Subtask helpers ──────────────────────────────────────────────────────────
   const updateLocalSubtask = (id: string, updater: (s: typeof localSubtasks[number]) => typeof localSubtasks[number]) => {
@@ -503,7 +554,11 @@ export function TaskDetailModal({
                               ref={tagInputRef}
                               value={tagInput}
                               onChange={(e) => setTagInput(e.target.value)}
-                              onKeyDown={(e) => { if (e.key === 'Enter') addCustomTag(); if (e.key === 'Escape') setShowTagPicker(false); }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') { e.preventDefault(); addCustomTag(); }
+                                if (e.key === 'Escape') { e.preventDefault(); setTagInput(''); setShowTagPicker(false); }
+                              }}
+                              onBlur={() => setTimeout(() => { setTagInput(''); setShowTagPicker(false); }, 120)}
                               placeholder="Nome da tag (Enter)..."
                               className="w-full rounded-lg border border-[#e5e5e5] bg-[#fafafa] px-3 py-1.5 text-sm outline-none dark:border-[#333] dark:bg-[#141414] dark:text-[#f5f5f5]"
                             />
@@ -547,27 +602,110 @@ export function TaskDetailModal({
                   )}
 
                   {isEditingDescription ? (
-                    <textarea
-                      autoFocus
-                      className="w-full min-h-[100px] rounded-xl border border-[#ff5623] bg-white px-3 py-2 text-sm text-[#171717] outline-none dark:bg-[#141414] dark:text-[#f5f5f5] resize-y"
-                      value={editDescription}
-                      onChange={(e) => setEditDescription(e.target.value)}
-                      onBlur={() => {
-                        setIsEditingDescription(false);
-                        const trimDesc = editDescription.trim();
-                        if (trimDesc !== getRichTextPlainText(task.description)) {
-                          onUpdateTaskField?.({ description: trimDesc }, 'atualizou a descrição da tarefa', 'edit');
-                        } else {
-                          setEditDescription(getRichTextPlainText(task.description));
-                        }
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Escape') {
-                           setEditDescription(getRichTextPlainText(task.description));
-                           setIsEditingDescription(false);
-                        }
-                      }}
-                    />
+                    <div className="overflow-hidden rounded-xl border border-[#ff5623] bg-white dark:bg-[#141414]">
+                      {/* ── Toolbar ── */}
+                      <div className="flex flex-wrap items-center gap-1 border-b border-[#e5e5e5] bg-[#fafafa] px-3 py-2 dark:border-[#2a2a2a] dark:bg-[#1e1e1e]">
+                        {/* Bold */}
+                        <button onMouseDown={(e) => { e.preventDefault(); applyFormatDetail('bold'); }} className="rounded-lg p-1.5 transition-colors hover:bg-[#e5e5e5] dark:hover:bg-[#2a2a2a]" title="Negrito">
+                          <Bold className="h-3.5 w-3.5 text-[#525252] dark:text-[#a3a3a3]" />
+                        </button>
+                        {/* Italic */}
+                        <button onMouseDown={(e) => { e.preventDefault(); applyFormatDetail('italic'); }} className="rounded-lg p-1.5 transition-colors hover:bg-[#e5e5e5] dark:hover:bg-[#2a2a2a]" title="Itálico">
+                          <Italic className="h-3.5 w-3.5 text-[#525252] dark:text-[#a3a3a3]" />
+                        </button>
+                        <div className="mx-1 h-4 w-px bg-[#e5e5e5] dark:bg-[#2a2a2a]" />
+                        {/* Font size */}
+                        <select
+                          value={detailFontSize}
+                          onMouseDown={(e) => e.stopPropagation()}
+                          onChange={(e) => {
+                            const next = e.target.value;
+                            setDetailFontSize(next);
+                            descDetailRef.current?.focus();
+                            document.execCommand('fontSize', false, fontSizeToExecValue(next));
+                          }}
+                          className="h-6 rounded-lg border border-[#e5e5e5] bg-transparent px-1.5 text-[11px] font-semibold text-[#525252] focus:outline-none dark:border-[#2a2a2a] dark:text-[#a3a3a3]"
+                        >
+                          {FONT_SIZES.map((s) => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                        <div className="mx-1 h-4 w-px bg-[#e5e5e5] dark:bg-[#2a2a2a]" />
+                        {/* Text color */}
+                        <div className="relative" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            onMouseDown={(e) => { e.preventDefault(); setShowDetailColorPicker((v) => !v); setShowDetailHighlightPicker(false); }}
+                            className="flex items-center gap-1 rounded-lg p-1.5 transition-colors hover:bg-[#e5e5e5] dark:hover:bg-[#2a2a2a]"
+                            title="Cor do texto"
+                          >
+                            <span className="text-sm font-bold" style={{ color: detailTextColor === '#ffffff' ? '#d4d4d4' : detailTextColor }}>A</span>
+                            <div className="h-1.5 w-3 rounded-sm border border-[#e5e5e5]" style={{ backgroundColor: detailTextColor }} />
+                          </button>
+                          {showDetailColorPicker && (
+                            <div className="absolute left-0 top-8 z-[300] flex flex-wrap gap-1.5 rounded-xl border border-[#e5e5e5] bg-white p-2 shadow-xl dark:border-[#2a2a2a] dark:bg-[#1e1e1e]">
+                              {TEXT_COLORS.map((color) => (
+                                <button
+                                  key={color}
+                                  onMouseDown={(e) => { e.preventDefault(); setDetailTextColor(color); applyFormatDetail('foreColor', color); setShowDetailColorPicker(false); }}
+                                  className="h-5 w-5 rounded-full border-2 transition-transform hover:scale-110"
+                                  style={{ backgroundColor: color, borderColor: detailTextColor === color ? '#171717' : color === '#ffffff' ? '#e5e5e5' : 'transparent' }}
+                                  title={color}
+                                />
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        {/* Highlight color */}
+                        <div className="relative" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            onMouseDown={(e) => { e.preventDefault(); setShowDetailHighlightPicker((v) => !v); setShowDetailColorPicker(false); }}
+                            className="flex items-center gap-1 rounded-lg p-1.5 transition-colors hover:bg-[#e5e5e5] dark:hover:bg-[#2a2a2a]"
+                            title="Marcador de texto"
+                          >
+                            <Highlighter className="h-3.5 w-3.5" style={{ color: detailHighlightColor !== 'transparent' ? detailHighlightColor : '#525252' }} />
+                            <div className="h-1.5 w-3 rounded-sm border border-[#e5e5e5]" style={{ backgroundColor: detailHighlightColor !== 'transparent' ? detailHighlightColor : 'transparent' }} />
+                          </button>
+                          {showDetailHighlightPicker && (
+                            <div className="absolute left-0 top-8 z-[300] flex flex-wrap gap-1.5 rounded-xl border border-[#e5e5e5] bg-white p-2 shadow-xl dark:border-[#2a2a2a] dark:bg-[#1e1e1e]">
+                              {HIGHLIGHT_COLORS.map(({ color, label }) => (
+                                <button
+                                  key={color}
+                                  onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    setDetailHighlightColor(color);
+                                    applyFormatDetail('backColor', color === 'transparent' ? 'transparent' : color);
+                                    setShowDetailHighlightPicker(false);
+                                  }}
+                                  className="h-5 w-5 rounded-full border-2 transition-transform hover:scale-110"
+                                  style={{
+                                    backgroundColor: color === 'transparent' ? 'white' : color,
+                                    borderColor: detailHighlightColor === color ? '#171717' : '#e5e5e5',
+                                  }}
+                                  title={label}
+                                />
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        {/* Done button */}
+                        <button
+                          onMouseDown={(e) => { e.preventDefault(); saveDetailDescription(); }}
+                          className="ml-auto rounded-lg bg-[#ff5623] px-2.5 py-1 text-[11px] font-semibold text-white transition-colors hover:bg-[#e04d1e]"
+                        >
+                          Feito
+                        </button>
+                      </div>
+                      {/* ── Content editable ── */}
+                      <div
+                        ref={descDetailRef}
+                        contentEditable
+                        suppressContentEditableWarning
+                        data-placeholder="Adicionar uma descrição..."
+                        className="min-h-[100px] px-3 py-2.5 text-sm text-[#171717] empty:before:pointer-events-none empty:before:italic empty:before:text-[#a3a3a3] empty:before:content-[attr(data-placeholder)] focus:outline-none dark:text-[#f5f5f5]"
+                        onBlur={saveDetailDescription}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Escape') { e.preventDefault(); setIsEditingDescription(false); }
+                        }}
+                      />
+                    </div>
                   ) : (
                     <div 
                       className="group relative min-h-[40px] cursor-pointer rounded-xl border border-transparent p-2 -ml-2 transition-colors hover:bg-[#f5f5f5] dark:hover:bg-[#232325]"

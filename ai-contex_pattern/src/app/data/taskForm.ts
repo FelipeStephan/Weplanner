@@ -31,7 +31,18 @@ export const TAG_PALETTE_CREATE = [
 export const FONT_SIZES = ['12px', '14px', '16px', '18px', '20px', '24px'];
 
 export const TEXT_COLORS = [
-  '#171717', '#ff5623', '#019364', '#987dfe', '#3b82f6', '#f32c2c', '#ca8a04',
+  '#171717', '#ffffff', '#ff5623', '#019364', '#987dfe', '#3b82f6', '#f32c2c', '#ca8a04',
+];
+
+/** Highlight/marker colors for rich text editor */
+export const HIGHLIGHT_COLORS = [
+  { color: 'transparent', label: 'Sem marcação' },
+  { color: '#fef08a', label: 'Amarelo' },
+  { color: '#fed7aa', label: 'Laranja' },
+  { color: '#bbf7d0', label: 'Verde' },
+  { color: '#bfdbfe', label: 'Azul' },
+  { color: '#e9d5ff', label: 'Roxo' },
+  { color: '#fecdd3', label: 'Rosa' },
 ];
 
 // ─── Mock clients (used in task forms) ───────────────────────────────────────

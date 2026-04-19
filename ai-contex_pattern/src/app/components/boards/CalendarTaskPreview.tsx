@@ -78,14 +78,7 @@ export function CalendarTaskPreview({ task, anchorRect }: CalendarTaskPreviewPro
             alt="Capa da tarefa"
             className="h-full w-full object-cover"
           />
-        </div>
-      )}
-
-      {/* Column accent bar */}
-      <div
-        className="h-[3px] w-full"
-        style={{ backgroundColor: task.columnAccentColor }}
-      />
+        )}
 
       <div className="p-4">
         {/* Title */}
