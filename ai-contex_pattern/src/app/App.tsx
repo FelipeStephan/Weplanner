@@ -27,6 +27,7 @@ import type { Role, PageView } from "./types/navigation";
 import { getRouteStateFromHash } from "./utils/routeState";
 import { GlobalModals } from "./components/shared/GlobalModals";
 import { DesignSystemPage } from "./pages/DesignSystemPage";
+import { ChangelogPage } from "./pages/ChangelogPage";
 import { useNotifications } from "./hooks/useNotifications";
 import { useClientsData } from "./hooks/useClientsData";
 import {
@@ -36,6 +37,7 @@ import {
   openTeamPage,
   openSettingsPage,
   openClientsPage,
+  openChangelogPage,
 } from "./utils/navigation";
 
 export default function App() {
@@ -240,6 +242,7 @@ export default function App() {
           onOpenTeam={openTeamPage}
           onOpenSettings={openSettingsPage}
           onOpenClients={openClientsPage}
+          onOpenChangelog={openChangelogPage}
           boards={visibleBoards}
           activeBoardId={selectedBoardId}
           onSelectBoard={(boardId) => openKanbanWorkspacePage(boardId)}
@@ -392,6 +395,10 @@ export default function App() {
             notifications={notifications}
             onOpenBoard={openKanbanWorkspacePage}
           />
+        )}
+
+        {pageView === "changelog" && (
+          <ChangelogPage />
         )}
       </main>
       </div>

@@ -23,3 +23,7 @@ export const openSettingsPage = () => {
 export const openClientsPage = () => {
   window.location.hash = "/clients";
 };
+
+export const openChangelogPage = () => {
+  window.location.hash = "/changelog";
+};

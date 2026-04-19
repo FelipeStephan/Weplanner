@@ -10,6 +10,7 @@ import {
   Moon,
   MoreHorizontal,
   Plus,
+  ScrollText,
   Settings,
   Sparkles,
   Sun,
@@ -22,7 +23,7 @@ import type { BoardRecord } from '../../../domain/kanban/contracts';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { cn } from '../ui/utils';
 
-export type AppShellPage = 'overview-dashboard' | 'design-system' | 'kanban-workspace' | 'reports-dashboard' | 'team' | 'settings' | 'clients';
+export type AppShellPage = 'overview-dashboard' | 'design-system' | 'kanban-workspace' | 'reports-dashboard' | 'team' | 'settings' | 'clients' | 'changelog';
 
 interface AppShellSidebarProps {
   collapsed: boolean;
@@ -37,6 +38,7 @@ interface AppShellSidebarProps {
   onOpenTeam?: () => void;
   onOpenSettings?: () => void;
   onOpenClients?: () => void;
+  onOpenChangelog?: () => void;
   boards: BoardRecord[];
   activeBoardId?: string | null;
   onSelectBoard: (boardId: string) => void;
@@ -63,6 +65,7 @@ const SIDEBAR_ITEMS: Array<{
   { key: 'clients', label: 'Clientes', icon: Building2, managerOnly: true },
   { key: 'settings', label: 'Configurações', icon: Settings, managerOnly: true },
   { key: 'design-system', label: 'Design System', icon: Sparkles },
+  { key: 'changelog', label: 'Atualizações', icon: ScrollText },
 ];
 
 const isActiveItem = (activePage: AppShellPage, itemKey: AppShellPage | 'team') =>
@@ -81,6 +84,7 @@ export function AppShellSidebar({
   onOpenTeam,
   onOpenSettings,
   onOpenClients,
+  onOpenChangelog,
   boards,
   activeBoardId,
   onSelectBoard,
@@ -184,7 +188,9 @@ export function AppShellSidebar({
                         ? onOpenSettings
                         : item.key === 'design-system'
                           ? onOpenDesignSystem
-                          : undefined;
+                          : item.key === 'changelog'
+                            ? onOpenChangelog
+                            : undefined;
 
             // Hide settings item for non-managers
             if (item.managerOnly && userRole !== 'manager') return null;
