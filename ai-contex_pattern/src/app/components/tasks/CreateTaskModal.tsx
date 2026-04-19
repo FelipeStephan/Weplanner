@@ -31,6 +31,7 @@ import {
   formatTaskDueDate,
   getTaskDueDateInputParts,
 } from '../../utils/taskDueDate';
+import { compressImage } from '../../utils/imageUtils';
 import { isRichTextEmpty, toDisplayRichTextHtml } from '../../utils/richText';
 import type {
   TaskAssignee,
@@ -298,13 +299,11 @@ export function CreateTaskModal({
   const handleCoverImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      setCoverImage(e.target?.result as string);
-    };
-    reader.readAsDataURL(file);
-    // Reset input so same file can be re-selected
+    // Reset input before async work so same file can be re-selected
     event.target.value = '';
+    compressImage(file).then(setCoverImage).catch((err) => {
+      console.error('Erro ao processar imagem de capa:', err);
+    });
   };
 
   const handleSubmit = () => {

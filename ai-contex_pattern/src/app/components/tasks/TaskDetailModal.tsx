@@ -42,6 +42,7 @@ import type { TaskDetailComment as Comment, TaskDetailAttachment as Attachment, 
 import { MOCK_TASK_FORM_CLIENTS } from '../../data/taskForm';
 import { MOCK_TASK_FORM_TEAM } from '../../../mocks/taskForm';
 import { DateTimePicker } from '../shared/DateTimePicker';
+import { compressImage } from '../../utils/imageUtils';
 
 export function TaskDetailModal({
   isOpen,
@@ -435,16 +436,15 @@ export function TaskDetailModal({
                 onChange={(e) => {
                   const file = e.target.files?.[0];
                   if (file) {
-                    const reader = new FileReader();
-                    reader.onload = (event) => {
-                      const result = event.target?.result;
-                      if (typeof result === 'string') {
-                        setCoverImage(result);
-                        onUpdateTaskField?.({ coverImage: result }, 'adicionou uma capa', 'edit');
-                      }
-                    };
-                    reader.readAsDataURL(file);
                     e.target.value = '';
+                    compressImage(file)
+                      .then((compressed) => {
+                        setCoverImage(compressed);
+                        onUpdateTaskField?.({ coverImage: compressed }, 'adicionou uma capa', 'edit');
+                      })
+                      .catch((err) => {
+                        console.error('Erro ao processar imagem de capa:', err);
+                      });
                   }
                 }}
               />
