@@ -78,7 +78,8 @@ export function CalendarTaskPreview({ task, anchorRect }: CalendarTaskPreviewPro
             alt="Capa da tarefa"
             className="h-full w-full object-cover"
           />
-        )}
+        </div>
+      )}
 
       <div className="p-4">
         {/* Title */}
