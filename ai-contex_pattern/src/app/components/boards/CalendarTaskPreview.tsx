@@ -13,10 +13,10 @@ const PRIORITY_LABELS: Record<TaskPriority, string> = {
 };
 
 const getPriorityClasses = (priority: TaskPriority) => {
-  if (priority === 'urgent') return 'bg-[#FFF0F1] text-[#C51D34]';
-  if (priority === 'high') return 'bg-[#FFF4EE] text-[#C2410C]';
-  if (priority === 'medium') return 'bg-[#FFF8DD] text-[#9A6700]';
-  return 'bg-[#EAF7F0] text-[#0F8A58]';
+  if (priority === 'urgent') return 'bg-[#FFF0F1] text-[#C51D34] dark:bg-[#C51D34]/15 dark:text-[#f87171]';
+  if (priority === 'high')   return 'bg-[#FFF4EE] text-[#C2410C] dark:bg-[#C2410C]/15 dark:text-[#fb923c]';
+  if (priority === 'medium') return 'bg-[#FFF8DD] text-[#9A6700] dark:bg-[#9A6700]/15 dark:text-[#fbbf24]';
+  return 'bg-[#EAF7F0] text-[#0F8A58] dark:bg-[#0F8A58]/15 dark:text-[#34d399]';
 };
 
 const withAlpha = (hexColor: string, alpha: string) => {

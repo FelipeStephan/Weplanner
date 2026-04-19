@@ -9,6 +9,7 @@ import {
   Diamond,
   FileText,
   FileType,
+  Highlighter,
   Image,
   ImagePlus,
   Italic,
@@ -83,7 +84,7 @@ export interface CreateTaskSubmitData {
 export interface CreateTaskInitialData extends Partial<CreateTaskSubmitData> {}
 
 
-import { PRIORITY_OPTIONS, WORKFLOW_STAGE_LABELS, TAG_PALETTE_CREATE as TAG_PALETTE, FONT_SIZES, TEXT_COLORS } from '../../data/taskForm';
+import { PRIORITY_OPTIONS, WORKFLOW_STAGE_LABELS, TAG_PALETTE_CREATE as TAG_PALETTE, FONT_SIZES, TEXT_COLORS, HIGHLIGHT_COLORS } from '../../data/taskForm';
 
 type TagColor = (typeof TAG_PALETTE)[number];
 
@@ -166,6 +167,11 @@ export function CreateTaskModal({
   const [fontSize, setFontSize] = useState('14px');
   const [textColor, setTextColor] = useState('#171717');
   const [showColorPicker, setShowColorPicker] = useState(false);
+  const [colorPickerPos, setColorPickerPos] = useState({ top: 0, left: 0 });
+  const [highlightColor, setHighlightColor] = useState('transparent');
+  const [showHighlightPicker, setShowHighlightPicker] = useState(false);
+  const [highlightPickerPos, setHighlightPickerPos] = useState({ top: 0, left: 0 });
+  const [heading, setHeading] = useState('p');
   const [subtasksEnabled, setSubtasksEnabled] = useState(false);
   const [subtasks, setSubtasks] = useState<TaskFormSubtask[]>([]);
   const [subtaskInput, setSubtaskInput] = useState('');
@@ -224,6 +230,9 @@ export function CreateTaskModal({
     setShowClientDropdown(false);
     setShowAssigneeDropdown(false);
     setShowColorPicker(false);
+    setHighlightColor('transparent');
+    setShowHighlightPicker(false);
+    setHeading('p');
     setSubtaskAssigneeTargetId(null);
     setSubtaskDateTargetId(null);
     setSubtaskAssigneeSearch('');
@@ -359,6 +368,7 @@ export function CreateTaskModal({
           onClick={() => {
             setTagPickerKey(null);
             setShowColorPicker(false);
+            setShowHighlightPicker(false);
             setShowColumnDropdown(false);
             setShowClientDropdown(false);
             setShowAssigneeDropdown(false);
@@ -461,14 +471,17 @@ export function CreateTaskModal({
 
           <div>
             <label className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-[#a3a3a3]">Descrição</label>
-            <div className="flex items-center gap-1 rounded-t-xl border border-b-0 border-[#e5e5e5] bg-[#fafafa] px-3 py-2 dark:border-[#2a2a2a] dark:bg-[#1e1e1e]">
-              <button onMouseDown={(event) => { event.preventDefault(); applyFormat('bold'); }} className="rounded-lg p-1.5 transition-colors hover:bg-[#e5e5e5] dark:hover:bg-[#2a2a2a]">
+            <div className="flex items-center gap-1 overflow-x-auto rounded-t-xl border border-b-0 border-[#e5e5e5] bg-[#fafafa] px-3 py-2 dark:border-[#2a2a2a] dark:bg-[#1e1e1e]">
+              {/* Bold */}
+              <button onMouseDown={(event) => { event.preventDefault(); applyFormat('bold'); }} className="shrink-0 rounded-lg p-1.5 transition-colors hover:bg-[#e5e5e5] dark:hover:bg-[#2a2a2a]">
                 <Bold className="h-3.5 w-3.5 text-[#525252] dark:text-[#a3a3a3]" />
               </button>
-              <button onMouseDown={(event) => { event.preventDefault(); applyFormat('italic'); }} className="rounded-lg p-1.5 transition-colors hover:bg-[#e5e5e5] dark:hover:bg-[#2a2a2a]">
+              {/* Italic */}
+              <button onMouseDown={(event) => { event.preventDefault(); applyFormat('italic'); }} className="shrink-0 rounded-lg p-1.5 transition-colors hover:bg-[#e5e5e5] dark:hover:bg-[#2a2a2a]">
                 <Italic className="h-3.5 w-3.5 text-[#525252] dark:text-[#a3a3a3]" />
               </button>
-              <div className="mx-1 h-4 w-px bg-[#e5e5e5] dark:bg-[#2a2a2a]" />
+              <div className="mx-1 h-4 w-px shrink-0 bg-[#e5e5e5] dark:bg-[#2a2a2a]" />
+              {/* Font size */}
               <select
                 value={fontSize}
                 onChange={(event) => {
@@ -476,43 +489,67 @@ export function CreateTaskModal({
                   setFontSize(nextValue);
                   applyFormat('fontSize', nextValue === '12px' ? '1' : nextValue === '14px' ? '2' : nextValue === '16px' ? '3' : nextValue === '18px' ? '4' : nextValue === '20px' ? '5' : '6');
                 }}
-                className="h-6 rounded-lg border border-[#e5e5e5] bg-transparent px-1.5 text-[11px] font-semibold text-[#525252] focus:outline-none dark:border-[#2a2a2a] dark:text-[#a3a3a3]"
+                className="h-6 shrink-0 rounded-lg border border-[#e5e5e5] bg-transparent px-1.5 text-[11px] font-semibold text-[#525252] focus:outline-none dark:border-[#2a2a2a] dark:text-[#a3a3a3]"
               >
-                {FONT_SIZES.map((size) => (
-                  <option key={size} value={size}>
-                    {size}
-                  </option>
-                ))}
+                {FONT_SIZES.map((size) => <option key={size} value={size}>{size}</option>)}
               </select>
-              <div className="mx-1 h-4 w-px bg-[#e5e5e5] dark:bg-[#2a2a2a]" />
-              <div className="relative" onClick={(event) => event.stopPropagation()}>
+              {/* Heading */}
+              <select
+                value={heading}
+                onChange={(event) => {
+                  const val = event.target.value;
+                  setHeading(val);
+                  descRef.current?.focus();
+                  document.execCommand('formatBlock', false, val);
+                }}
+                className="h-6 shrink-0 rounded-lg border border-[#e5e5e5] bg-transparent px-1.5 text-[11px] font-semibold text-[#525252] focus:outline-none dark:border-[#2a2a2a] dark:text-[#a3a3a3]"
+                title="Estilo do parágrafo"
+              >
+                <option value="p">P</option>
+                <option value="h1">H1</option>
+                <option value="h2">H2</option>
+                <option value="h3">H3</option>
+              </select>
+              <div className="mx-1 h-4 w-px shrink-0 bg-[#e5e5e5] dark:bg-[#2a2a2a]" />
+              {/* Text color — fixed popup */}
+              <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
                 <button
                   onMouseDown={(event) => {
                     event.preventDefault();
+                    const rect = event.currentTarget.getBoundingClientRect();
+                    setColorPickerPos({ top: rect.bottom + 6, left: rect.left });
                     setShowColorPicker((current) => !current);
+                    setShowHighlightPicker(false);
                   }}
-                  className="flex items-center gap-1.5 rounded-lg p-1.5 transition-colors hover:bg-[#e5e5e5] dark:hover:bg-[#2a2a2a]"
+                  className="flex items-center gap-1 rounded-lg p-1.5 text-[#525252] transition-colors hover:bg-[#e5e5e5] dark:text-[#a3a3a3] dark:hover:bg-[#2a2a2a]"
+                  title="Cor do texto"
                 >
-                  <span className="text-sm font-bold" style={{ color: textColor }}>A</span>
-                  <div className="h-1.5 w-3 rounded-sm" style={{ backgroundColor: textColor }} />
+                  <span
+                    className="text-sm font-bold"
+                    style={textColor !== '#171717' ? { color: textColor === '#ffffff' ? '#d4d4d4' : textColor } : {}}
+                  >A</span>
+                  <div className="h-1.5 w-3 rounded-sm" style={{ backgroundColor: textColor, boxShadow: textColor === '#ffffff' ? 'inset 0 0 0 1px #d4d4d4' : 'none' }} />
                 </button>
-                {showColorPicker && (
-                  <div className="absolute left-0 top-8 z-50 flex gap-1.5 rounded-xl border border-[#e5e5e5] bg-white p-2 shadow-xl dark:border-[#2a2a2a] dark:bg-[#1e1e1e]">
-                    {TEXT_COLORS.map((color) => (
-                      <button
-                        key={color}
-                        onMouseDown={(event) => {
-                          event.preventDefault();
-                          setTextColor(color);
-                          applyFormat('foreColor', color);
-                          setShowColorPicker(false);
-                        }}
-                        className="h-5 w-5 rounded-full border-2 transition-transform hover:scale-110"
-                        style={{ backgroundColor: color, borderColor: textColor === color ? '#171717' : 'transparent' }}
-                      />
-                    ))}
-                  </div>
-                )}
+              </div>
+              {/* Highlight color — fixed popup */}
+              <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
+                <button
+                  onMouseDown={(event) => {
+                    event.preventDefault();
+                    const rect = event.currentTarget.getBoundingClientRect();
+                    setHighlightPickerPos({ top: rect.bottom + 6, left: rect.left });
+                    setShowHighlightPicker((current) => !current);
+                    setShowColorPicker(false);
+                  }}
+                  className="flex items-center gap-1 rounded-lg p-1.5 transition-colors hover:bg-[#e5e5e5] dark:hover:bg-[#2a2a2a]"
+                  title="Marcador de texto"
+                >
+                  <Highlighter
+                    className="h-3.5 w-3.5 shrink-0 text-[#525252] dark:text-[#a3a3a3]"
+                    style={highlightColor !== 'transparent' ? { color: highlightColor } : {}}
+                  />
+                  <div className="h-1.5 w-3 rounded-sm" style={{ backgroundColor: highlightColor !== 'transparent' ? highlightColor : 'transparent', boxShadow: '0 0 0 1px #888888' }} />
+                </button>
               </div>
             </div>
             <div
@@ -1089,6 +1126,68 @@ export function CreateTaskModal({
           </button>
         </div>
       </div>
+
+      {/* ── Fixed color picker popup ────────────────────────────────────────── */}
+      {showColorPicker && (
+        <div
+          className="fixed z-[500] flex flex-nowrap gap-1.5 rounded-xl border border-[#e5e5e5] bg-white p-2 shadow-xl dark:border-[#2a2a2a] dark:bg-[#1e1e1e]"
+          style={{ top: colorPickerPos.top, left: colorPickerPos.left }}
+          onMouseDown={(e) => e.preventDefault()}
+        >
+          {TEXT_COLORS.map((color) => (
+            <button
+              key={color}
+              onMouseDown={(event) => {
+                event.preventDefault();
+                setTextColor(color);
+                applyFormat('foreColor', color);
+                setShowColorPicker(false);
+              }}
+              className="h-5 w-5 shrink-0 rounded-full transition-transform hover:scale-110"
+              style={{
+                backgroundColor: color,
+                boxShadow:
+                  textColor === color
+                    ? '0 0 0 2px #171717'
+                    : color === '#ffffff'
+                    ? '0 0 0 1.5px #d4d4d4'
+                    : '0 0 0 1.5px transparent',
+              }}
+              title={color}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* ── Fixed highlight picker popup ─────────────────────────────────────── */}
+      {showHighlightPicker && (
+        <div
+          className="fixed z-[500] flex flex-nowrap gap-1.5 rounded-xl border border-[#e5e5e5] bg-white p-2 shadow-xl dark:border-[#2a2a2a] dark:bg-[#1e1e1e]"
+          style={{ top: highlightPickerPos.top, left: highlightPickerPos.left }}
+          onMouseDown={(e) => e.preventDefault()}
+        >
+          {HIGHLIGHT_COLORS.map(({ color, label }) => (
+            <button
+              key={color}
+              onMouseDown={(event) => {
+                event.preventDefault();
+                setHighlightColor(color);
+                applyFormat('backColor', color === 'transparent' ? 'transparent' : color);
+                setShowHighlightPicker(false);
+              }}
+              className="h-5 w-5 shrink-0 rounded-full transition-transform hover:scale-110"
+              style={{
+                backgroundColor: color === 'transparent' ? '#ffffff' : color,
+                boxShadow:
+                  highlightColor === color
+                    ? '0 0 0 2px #171717'
+                    : '0 0 0 1.5px #d4d4d4',
+              }}
+              title={label}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

@@ -41,6 +41,88 @@ export interface ChangelogRelease {
 
 export const CHANGELOG_RELEASES: ChangelogRelease[] = [
   {
+    version: '0.4.3',
+    date: '19 Abr 2026',
+    isoDate: '2026-04-19',
+    summary: 'Dark mode nos editores de texto, headings H1/H2/H3 e correções de comportamento da toolbar',
+    modules: [
+      {
+        area: 'Tarefas — Editor de Descrição (Detalhes + Criação)',
+        emoji: '✏️',
+        changes: [
+          {
+            type: 'feature',
+            title: 'Headings H1 / H2 / H3 na toolbar do editor rich text',
+            description:
+              'Adicionado select "P / H1 / H2 / H3" na toolbar de ambos os modais usando document.execCommand("formatBlock"). Estado reseta para "p" ao fechar o editor. Posicionado após o seletor de font-size para manter hierarquia visual coerente.',
+            files: [
+              'components/tasks/TaskDetailModal.tsx',
+              'components/tasks/CreateTaskModal.tsx',
+            ],
+          },
+          {
+            type: 'feature',
+            title: 'Marcador de texto (highlight) adicionado ao CreateTaskModal',
+            description:
+              'O CreateTaskModal agora tem o picker de highlight com a mesma implementação do TaskDetailModal: botão com ícone Highlighter + swatch, popup fixed-position via getBoundingClientRect() para não ser cortado pelo overflow-y-auto do container. Estados highlightColor, showHighlightPicker e highlightPickerPos adicionados.',
+            files: ['components/tasks/CreateTaskModal.tsx', 'data/taskForm.ts'],
+          },
+          {
+            type: 'fix',
+            title: 'Selects de font-size e heading fechavam o editor ao serem clicados',
+            description:
+              'O onBlur={saveDetailDescription} no contentEditable disparava quando o foco movia para qualquer select da toolbar. Fix: adicionado descEditorContainerRef no container do editor e o onBlur agora verifica e.relatedTarget — se o foco ainda está dentro do container, o salvamento é cancelado. Selects são focusáveis nativamente, então relatedTarget aponta para eles corretamente.',
+            files: ['components/tasks/TaskDetailModal.tsx'],
+          },
+          {
+            type: 'fix',
+            title: 'Picker de cor piscava e sumia imediatamente no CreateTaskModal',
+            description:
+              'Race condition: onMouseDown abria o picker, mas o click seguinte subia via bubble até o onClick do container de scroll que fechava tudo. Fix: onClick={(e) => e.stopPropagation()} nos wrappers dos botões de cor e highlight, impedindo a propagação sem afetar o onMouseDown.',
+            files: ['components/tasks/CreateTaskModal.tsx'],
+          },
+        ],
+      },
+      {
+        area: 'Dark Mode — Editores e Badges',
+        emoji: '🌙',
+        changes: [
+          {
+            type: 'design',
+            title: 'Badges de prioridade adaptados para dark mode',
+            description:
+              'Os passiveBg/passiveText de PRIORITY_OPTIONS usavam tons pastéis claros (bg-[#dcfce7] etc.) que desaparecem em fundo escuro. Adicionadas variantes dark: com fundo semi-transparente (bg-color/15) e texto mais vivo para cada nível: Baixa dark:text-[#4ade80], Média dark:text-[#fbbf24], Alta dark:text-[#f87171], Urgente dark:text-[#c084fc]. Mesma correção aplicada ao CalendarTaskPreview que tinha as classes hardcoded.',
+            files: [
+              'data/taskForm.ts',
+              'components/boards/CalendarTaskPreview.tsx',
+            ],
+          },
+          {
+            type: 'fix',
+            title: 'Ícone "A" de cor do texto invisível em dark mode',
+            description:
+              'O span do "A" usava color: detailTextColor diretamente, que por padrão é #171717 (preto) — invisível em fundo escuro. Fix: o style inline só é aplicado quando a cor não é a padrão, deixando o className com dark:text-[#a3a3a3] assumir o controle no dark mode.',
+            files: [
+              'components/tasks/TaskDetailModal.tsx',
+              'components/tasks/CreateTaskModal.tsx',
+            ],
+          },
+          {
+            type: 'fix',
+            title: 'Ícone Highlighter e swatch do marcador sem contraste em dark mode',
+            description:
+              'O Highlighter recebia color: #525252 hardcoded quando sem cor ativa — quase invisível no dark. Fix: className com dark:text-[#a3a3a3] e style só aplicado quando há cor ativa. O swatch indicador usava boxShadow com #d4d4d4 (claro demais no dark). Substituído por #888888, cinza médio visível em ambos os modos sem precisar de variante dark separada.',
+            files: [
+              'components/tasks/TaskDetailModal.tsx',
+              'components/tasks/CreateTaskModal.tsx',
+            ],
+          },
+        ],
+      },
+    ],
+  },
+
+  {
     version: '0.4.2',
     date: '19 Abr 2026',
     isoDate: '2026-04-19',
