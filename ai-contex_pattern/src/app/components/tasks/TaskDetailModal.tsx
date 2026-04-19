@@ -630,8 +630,8 @@ export function TaskDetailModal({
                           {FONT_SIZES.map((s) => <option key={s} value={s}>{s}</option>)}
                         </select>
                         <div className="mx-1 h-4 w-px shrink-0 bg-[#e5e5e5] dark:bg-[#2a2a2a]" />
-                        {/* Text color */}
-                        <div className="relative shrink-0" onClick={(e) => e.stopPropagation()}>
+                        {/* Text color — inline swatches (sem dropdown flutuante para evitar clipping do overflow-y-auto pai) */}
+                        <div className="flex shrink-0 items-center gap-1">
                           <button
                             onMouseDown={(e) => { e.preventDefault(); setShowDetailColorPicker((v) => !v); setShowDetailHighlightPicker(false); }}
                             className="flex items-center gap-1 rounded-lg p-1.5 transition-colors hover:bg-[#e5e5e5] dark:hover:bg-[#2a2a2a]"
@@ -641,7 +641,7 @@ export function TaskDetailModal({
                             <div className="h-1.5 w-3 rounded-sm" style={{ backgroundColor: detailTextColor, boxShadow: detailTextColor === '#ffffff' ? 'inset 0 0 0 1px #d4d4d4' : 'none' }} />
                           </button>
                           {showDetailColorPicker && (
-                            <div className="absolute left-0 top-full z-[300] mt-1 flex flex-nowrap gap-1.5 rounded-xl border border-[#e5e5e5] bg-white p-2 shadow-xl dark:border-[#2a2a2a] dark:bg-[#1e1e1e]">
+                            <div className="flex items-center gap-1.5 rounded-lg border border-[#e5e5e5] bg-white px-1.5 py-1 dark:border-[#2a2a2a] dark:bg-[#1e1e1e]">
                               {TEXT_COLORS.map((color) => (
                                 <button
                                   key={color}
@@ -649,11 +649,7 @@ export function TaskDetailModal({
                                   className="h-5 w-5 shrink-0 rounded-full transition-transform hover:scale-110"
                                   style={{
                                     backgroundColor: color,
-                                    boxShadow: detailTextColor === color
-                                      ? '0 0 0 2px #171717'
-                                      : color === '#ffffff'
-                                        ? '0 0 0 1.5px #d4d4d4'
-                                        : '0 0 0 1.5px transparent',
+                                    boxShadow: detailTextColor === color ? '0 0 0 2px #171717' : color === '#ffffff' ? '0 0 0 1.5px #d4d4d4' : '0 0 0 1.5px transparent',
                                   }}
                                   title={color}
                                 />
@@ -661,41 +657,26 @@ export function TaskDetailModal({
                             </div>
                           )}
                         </div>
-                        {/* Highlight color */}
-                        <div className="relative shrink-0" onClick={(e) => e.stopPropagation()}>
+                        {/* Highlight color — inline swatches */}
+                        <div className="flex shrink-0 items-center gap-1">
                           <button
                             onMouseDown={(e) => { e.preventDefault(); setShowDetailHighlightPicker((v) => !v); setShowDetailColorPicker(false); }}
                             className="flex items-center gap-1 rounded-lg p-1.5 transition-colors hover:bg-[#e5e5e5] dark:hover:bg-[#2a2a2a]"
                             title="Marcador de texto"
                           >
                             <Highlighter className="h-3.5 w-3.5 shrink-0" style={{ color: detailHighlightColor !== 'transparent' ? detailHighlightColor : '#525252' }} />
-                            <div
-                              className="h-1.5 w-3 rounded-sm"
-                              style={{
-                                backgroundColor: detailHighlightColor !== 'transparent' ? detailHighlightColor : 'transparent',
-                                boxShadow: '0 0 0 1px #d4d4d4',
-                              }}
-                            />
+                            <div className="h-1.5 w-3 rounded-sm" style={{ backgroundColor: detailHighlightColor !== 'transparent' ? detailHighlightColor : 'transparent', boxShadow: '0 0 0 1px #d4d4d4' }} />
                           </button>
                           {showDetailHighlightPicker && (
-                            <div className="absolute left-0 top-full z-[300] mt-1 flex flex-nowrap gap-1.5 rounded-xl border border-[#e5e5e5] bg-white p-2 shadow-xl dark:border-[#2a2a2a] dark:bg-[#1e1e1e]">
+                            <div className="flex items-center gap-1.5 rounded-lg border border-[#e5e5e5] bg-white px-1.5 py-1 dark:border-[#2a2a2a] dark:bg-[#1e1e1e]">
                               {HIGHLIGHT_COLORS.map(({ color, label }) => (
                                 <button
                                   key={color}
-                                  onMouseDown={(e) => {
-                                    e.preventDefault();
-                                    setDetailHighlightColor(color);
-                                    applyFormatDetail('backColor', color === 'transparent' ? 'transparent' : color);
-                                    setShowDetailHighlightPicker(false);
-                                  }}
+                                  onMouseDown={(e) => { e.preventDefault(); setDetailHighlightColor(color); applyFormatDetail('backColor', color === 'transparent' ? 'transparent' : color); setShowDetailHighlightPicker(false); }}
                                   className="h-5 w-5 shrink-0 rounded-full transition-transform hover:scale-110"
                                   style={{
                                     backgroundColor: color === 'transparent' ? '#ffffff' : color,
-                                    boxShadow: detailHighlightColor === color
-                                      ? '0 0 0 2px #171717'
-                                      : color === 'transparent'
-                                        ? '0 0 0 1.5px #d4d4d4'
-                                        : '0 0 0 1.5px transparent',
+                                    boxShadow: detailHighlightColor === color ? '0 0 0 2px #171717' : color === 'transparent' ? '0 0 0 1.5px #d4d4d4' : '0 0 0 1.5px transparent',
                                   }}
                                   title={label}
                                 />
