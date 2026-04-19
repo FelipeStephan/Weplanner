@@ -205,10 +205,15 @@ export function ChangelogPage() {
               Releases
             </p>
             {CHANGELOG_RELEASES.map((release) => (
-              <a
+              <button
                 key={release.version}
-                href={`#release-${release.version}`}
-                className="group flex items-start gap-2.5 rounded-lg px-2 py-2 transition-colors hover:bg-[#f5f5f5] dark:hover:bg-[#1e1e1e]"
+                type="button"
+                onClick={() => {
+                  document
+                    .getElementById(`release-${release.version}`)
+                    ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }}
+                className="group flex w-full items-start gap-2.5 rounded-lg px-2 py-2 text-left transition-colors hover:bg-[#f5f5f5] dark:hover:bg-[#1e1e1e]"
               >
                 <div className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#d4d4d4] transition-colors group-hover:bg-[#ff5623]" />
                 <div>
@@ -217,7 +222,7 @@ export function ChangelogPage() {
                   </p>
                   <p className="text-[10px] text-[#a3a3a3]">{release.date}</p>
                 </div>
-              </a>
+              </button>
             ))}
           </div>
         </aside>
