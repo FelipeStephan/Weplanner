@@ -602,18 +602,19 @@ export function TaskDetailModal({
                   )}
 
                   {isEditingDescription ? (
-                    <div className="overflow-hidden rounded-xl border border-[#ff5623] bg-white dark:bg-[#141414]">
+                    /* sem overflow-hidden — permite que os dropdowns da toolbar apareçam fora dos limites */
+                    <div className="rounded-xl border border-[#ff5623] bg-white dark:bg-[#141414]">
                       {/* ── Toolbar ── */}
-                      <div className="flex flex-wrap items-center gap-1 border-b border-[#e5e5e5] bg-[#fafafa] px-3 py-2 dark:border-[#2a2a2a] dark:bg-[#1e1e1e]">
+                      <div className="flex items-center gap-1 overflow-x-auto border-b border-[#e5e5e5] bg-[#fafafa] px-3 py-2 dark:border-[#2a2a2a] dark:bg-[#1e1e1e]">
                         {/* Bold */}
-                        <button onMouseDown={(e) => { e.preventDefault(); applyFormatDetail('bold'); }} className="rounded-lg p-1.5 transition-colors hover:bg-[#e5e5e5] dark:hover:bg-[#2a2a2a]" title="Negrito">
+                        <button onMouseDown={(e) => { e.preventDefault(); applyFormatDetail('bold'); }} className="shrink-0 rounded-lg p-1.5 transition-colors hover:bg-[#e5e5e5] dark:hover:bg-[#2a2a2a]" title="Negrito">
                           <Bold className="h-3.5 w-3.5 text-[#525252] dark:text-[#a3a3a3]" />
                         </button>
                         {/* Italic */}
-                        <button onMouseDown={(e) => { e.preventDefault(); applyFormatDetail('italic'); }} className="rounded-lg p-1.5 transition-colors hover:bg-[#e5e5e5] dark:hover:bg-[#2a2a2a]" title="Itálico">
+                        <button onMouseDown={(e) => { e.preventDefault(); applyFormatDetail('italic'); }} className="shrink-0 rounded-lg p-1.5 transition-colors hover:bg-[#e5e5e5] dark:hover:bg-[#2a2a2a]" title="Itálico">
                           <Italic className="h-3.5 w-3.5 text-[#525252] dark:text-[#a3a3a3]" />
                         </button>
-                        <div className="mx-1 h-4 w-px bg-[#e5e5e5] dark:bg-[#2a2a2a]" />
+                        <div className="mx-1 h-4 w-px shrink-0 bg-[#e5e5e5] dark:bg-[#2a2a2a]" />
                         {/* Font size */}
                         <select
                           value={detailFontSize}
@@ -624,29 +625,36 @@ export function TaskDetailModal({
                             descDetailRef.current?.focus();
                             document.execCommand('fontSize', false, fontSizeToExecValue(next));
                           }}
-                          className="h-6 rounded-lg border border-[#e5e5e5] bg-transparent px-1.5 text-[11px] font-semibold text-[#525252] focus:outline-none dark:border-[#2a2a2a] dark:text-[#a3a3a3]"
+                          className="h-6 shrink-0 rounded-lg border border-[#e5e5e5] bg-transparent px-1.5 text-[11px] font-semibold text-[#525252] focus:outline-none dark:border-[#2a2a2a] dark:text-[#a3a3a3]"
                         >
                           {FONT_SIZES.map((s) => <option key={s} value={s}>{s}</option>)}
                         </select>
-                        <div className="mx-1 h-4 w-px bg-[#e5e5e5] dark:bg-[#2a2a2a]" />
+                        <div className="mx-1 h-4 w-px shrink-0 bg-[#e5e5e5] dark:bg-[#2a2a2a]" />
                         {/* Text color */}
-                        <div className="relative" onClick={(e) => e.stopPropagation()}>
+                        <div className="relative shrink-0" onClick={(e) => e.stopPropagation()}>
                           <button
                             onMouseDown={(e) => { e.preventDefault(); setShowDetailColorPicker((v) => !v); setShowDetailHighlightPicker(false); }}
                             className="flex items-center gap-1 rounded-lg p-1.5 transition-colors hover:bg-[#e5e5e5] dark:hover:bg-[#2a2a2a]"
                             title="Cor do texto"
                           >
                             <span className="text-sm font-bold" style={{ color: detailTextColor === '#ffffff' ? '#d4d4d4' : detailTextColor }}>A</span>
-                            <div className="h-1.5 w-3 rounded-sm border border-[#e5e5e5]" style={{ backgroundColor: detailTextColor }} />
+                            <div className="h-1.5 w-3 rounded-sm" style={{ backgroundColor: detailTextColor, boxShadow: detailTextColor === '#ffffff' ? 'inset 0 0 0 1px #d4d4d4' : 'none' }} />
                           </button>
                           {showDetailColorPicker && (
-                            <div className="absolute left-0 top-8 z-[300] flex flex-wrap gap-1.5 rounded-xl border border-[#e5e5e5] bg-white p-2 shadow-xl dark:border-[#2a2a2a] dark:bg-[#1e1e1e]">
+                            <div className="absolute left-0 top-full z-[300] mt-1 flex flex-nowrap gap-1.5 rounded-xl border border-[#e5e5e5] bg-white p-2 shadow-xl dark:border-[#2a2a2a] dark:bg-[#1e1e1e]">
                               {TEXT_COLORS.map((color) => (
                                 <button
                                   key={color}
                                   onMouseDown={(e) => { e.preventDefault(); setDetailTextColor(color); applyFormatDetail('foreColor', color); setShowDetailColorPicker(false); }}
-                                  className="h-5 w-5 rounded-full border-2 transition-transform hover:scale-110"
-                                  style={{ backgroundColor: color, borderColor: detailTextColor === color ? '#171717' : color === '#ffffff' ? '#e5e5e5' : 'transparent' }}
+                                  className="h-5 w-5 shrink-0 rounded-full transition-transform hover:scale-110"
+                                  style={{
+                                    backgroundColor: color,
+                                    boxShadow: detailTextColor === color
+                                      ? '0 0 0 2px #171717'
+                                      : color === '#ffffff'
+                                        ? '0 0 0 1.5px #d4d4d4'
+                                        : '0 0 0 1.5px transparent',
+                                  }}
                                   title={color}
                                 />
                               ))}
@@ -654,17 +662,23 @@ export function TaskDetailModal({
                           )}
                         </div>
                         {/* Highlight color */}
-                        <div className="relative" onClick={(e) => e.stopPropagation()}>
+                        <div className="relative shrink-0" onClick={(e) => e.stopPropagation()}>
                           <button
                             onMouseDown={(e) => { e.preventDefault(); setShowDetailHighlightPicker((v) => !v); setShowDetailColorPicker(false); }}
                             className="flex items-center gap-1 rounded-lg p-1.5 transition-colors hover:bg-[#e5e5e5] dark:hover:bg-[#2a2a2a]"
                             title="Marcador de texto"
                           >
-                            <Highlighter className="h-3.5 w-3.5" style={{ color: detailHighlightColor !== 'transparent' ? detailHighlightColor : '#525252' }} />
-                            <div className="h-1.5 w-3 rounded-sm border border-[#e5e5e5]" style={{ backgroundColor: detailHighlightColor !== 'transparent' ? detailHighlightColor : 'transparent' }} />
+                            <Highlighter className="h-3.5 w-3.5 shrink-0" style={{ color: detailHighlightColor !== 'transparent' ? detailHighlightColor : '#525252' }} />
+                            <div
+                              className="h-1.5 w-3 rounded-sm"
+                              style={{
+                                backgroundColor: detailHighlightColor !== 'transparent' ? detailHighlightColor : 'transparent',
+                                boxShadow: '0 0 0 1px #d4d4d4',
+                              }}
+                            />
                           </button>
                           {showDetailHighlightPicker && (
-                            <div className="absolute left-0 top-8 z-[300] flex flex-wrap gap-1.5 rounded-xl border border-[#e5e5e5] bg-white p-2 shadow-xl dark:border-[#2a2a2a] dark:bg-[#1e1e1e]">
+                            <div className="absolute left-0 top-full z-[300] mt-1 flex flex-nowrap gap-1.5 rounded-xl border border-[#e5e5e5] bg-white p-2 shadow-xl dark:border-[#2a2a2a] dark:bg-[#1e1e1e]">
                               {HIGHLIGHT_COLORS.map(({ color, label }) => (
                                 <button
                                   key={color}
@@ -674,10 +688,14 @@ export function TaskDetailModal({
                                     applyFormatDetail('backColor', color === 'transparent' ? 'transparent' : color);
                                     setShowDetailHighlightPicker(false);
                                   }}
-                                  className="h-5 w-5 rounded-full border-2 transition-transform hover:scale-110"
+                                  className="h-5 w-5 shrink-0 rounded-full transition-transform hover:scale-110"
                                   style={{
-                                    backgroundColor: color === 'transparent' ? 'white' : color,
-                                    borderColor: detailHighlightColor === color ? '#171717' : '#e5e5e5',
+                                    backgroundColor: color === 'transparent' ? '#ffffff' : color,
+                                    boxShadow: detailHighlightColor === color
+                                      ? '0 0 0 2px #171717'
+                                      : color === 'transparent'
+                                        ? '0 0 0 1.5px #d4d4d4'
+                                        : '0 0 0 1.5px transparent',
                                   }}
                                   title={label}
                                 />
@@ -688,7 +706,7 @@ export function TaskDetailModal({
                         {/* Done button */}
                         <button
                           onMouseDown={(e) => { e.preventDefault(); saveDetailDescription(); }}
-                          className="ml-auto rounded-lg bg-[#ff5623] px-2.5 py-1 text-[11px] font-semibold text-white transition-colors hover:bg-[#e04d1e]"
+                          className="ml-auto shrink-0 rounded-lg bg-[#ff5623] px-2.5 py-1 text-[11px] font-semibold text-white transition-colors hover:bg-[#e04d1e]"
                         >
                           Feito
                         </button>
@@ -699,7 +717,7 @@ export function TaskDetailModal({
                         contentEditable
                         suppressContentEditableWarning
                         data-placeholder="Adicionar uma descrição..."
-                        className="min-h-[100px] px-3 py-2.5 text-sm text-[#171717] empty:before:pointer-events-none empty:before:italic empty:before:text-[#a3a3a3] empty:before:content-[attr(data-placeholder)] focus:outline-none dark:text-[#f5f5f5]"
+                        className="min-h-[180px] px-3 py-2.5 text-sm text-[#171717] empty:before:pointer-events-none empty:before:italic empty:before:text-[#a3a3a3] empty:before:content-[attr(data-placeholder)] focus:outline-none dark:text-[#f5f5f5]"
                         onBlur={saveDetailDescription}
                         onKeyDown={(e) => {
                           if (e.key === 'Escape') { e.preventDefault(); setIsEditingDescription(false); }
