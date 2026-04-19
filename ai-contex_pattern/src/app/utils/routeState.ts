@@ -80,6 +80,13 @@ export const getRouteStateFromHash = (): {
     };
   }
 
+  if (path === "/boards-directory") {
+    return {
+      pageView: "boards-directory",
+      boardId: null,
+    };
+  }
+
   return {
     pageView: "overview-dashboard",
     boardId,

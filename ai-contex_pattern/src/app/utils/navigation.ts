@@ -27,3 +27,7 @@ export const openClientsPage = () => {
 export const openChangelogPage = () => {
   window.location.hash = "/changelog";
 };
+
+export const openBoardsDirectoryPage = () => {
+  window.location.hash = "/boards-directory";
+};
