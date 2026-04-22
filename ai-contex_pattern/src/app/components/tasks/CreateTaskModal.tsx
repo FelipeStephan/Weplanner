@@ -9,6 +9,7 @@ import {
   Diamond,
   FileText,
   FileType,
+  Highlighter,
   Image,
   ImagePlus,
   Italic,
@@ -25,11 +26,13 @@ import {
   X,
 } from 'lucide-react';
 import { AvatarStack } from '../shared/AvatarStack';
+import { DateTimePicker } from '../shared/DateTimePicker';
 import {
   buildTaskDueDateValue,
   formatTaskDueDate,
   getTaskDueDateInputParts,
 } from '../../utils/taskDueDate';
+import { compressImage } from '../../utils/imageUtils';
 import { isRichTextEmpty, toDisplayRichTextHtml } from '../../utils/richText';
 import type {
   TaskAssignee,
@@ -81,7 +84,7 @@ export interface CreateTaskSubmitData {
 export interface CreateTaskInitialData extends Partial<CreateTaskSubmitData> {}
 
 
-import { PRIORITY_OPTIONS, WORKFLOW_STAGE_LABELS, TAG_PALETTE_CREATE as TAG_PALETTE, FONT_SIZES, TEXT_COLORS } from '../../data/taskForm';
+import { PRIORITY_OPTIONS, WORKFLOW_STAGE_LABELS, TAG_PALETTE_CREATE as TAG_PALETTE, FONT_SIZES, TEXT_COLORS, HIGHLIGHT_COLORS } from '../../data/taskForm';
 
 type TagColor = (typeof TAG_PALETTE)[number];
 
@@ -164,6 +167,11 @@ export function CreateTaskModal({
   const [fontSize, setFontSize] = useState('14px');
   const [textColor, setTextColor] = useState('#171717');
   const [showColorPicker, setShowColorPicker] = useState(false);
+  const [colorPickerPos, setColorPickerPos] = useState({ top: 0, left: 0 });
+  const [highlightColor, setHighlightColor] = useState('transparent');
+  const [showHighlightPicker, setShowHighlightPicker] = useState(false);
+  const [highlightPickerPos, setHighlightPickerPos] = useState({ top: 0, left: 0 });
+  const [heading, setHeading] = useState('p');
   const [subtasksEnabled, setSubtasksEnabled] = useState(false);
   const [subtasks, setSubtasks] = useState<TaskFormSubtask[]>([]);
   const [subtaskInput, setSubtaskInput] = useState('');
@@ -222,6 +230,9 @@ export function CreateTaskModal({
     setShowClientDropdown(false);
     setShowAssigneeDropdown(false);
     setShowColorPicker(false);
+    setHighlightColor('transparent');
+    setShowHighlightPicker(false);
+    setHeading('p');
     setSubtaskAssigneeTargetId(null);
     setSubtaskDateTargetId(null);
     setSubtaskAssigneeSearch('');
@@ -297,13 +308,11 @@ export function CreateTaskModal({
   const handleCoverImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      setCoverImage(e.target?.result as string);
-    };
-    reader.readAsDataURL(file);
-    // Reset input so same file can be re-selected
+    // Reset input before async work so same file can be re-selected
     event.target.value = '';
+    compressImage(file).then(setCoverImage).catch((err) => {
+      console.error('Erro ao processar imagem de capa:', err);
+    });
   };
 
   const handleSubmit = () => {
@@ -347,59 +356,6 @@ export function CreateTaskModal({
             </h2>
           </div>
           <div className="flex items-center gap-2">
-            <div className="relative">
-              <button 
-                type="button"
-                onClick={() => setShowCoverDropdown(!showCoverDropdown)} 
-                className="flex items-center gap-1.5 rounded-lg border border-[#e5e5e5] bg-white px-3 py-1.5 text-xs font-semibold text-[#525252] transition-colors hover:bg-[#fafafa] dark:border-[#2a2a2a] dark:bg-[#1e1e1e] dark:text-[#a3a3a3] dark:hover:bg-[#232325]"
-              >
-                <ImagePlus className="h-4 w-4" />
-                Capa
-              </button>
-              {showCoverDropdown && (
-                <div className="absolute right-0 top-full mt-2 w-56 z-[200] rounded-xl border border-[#e5e5e5] bg-white p-2 shadow-xl dark:border-[#2a2a2a] dark:bg-[#1e1e1e]">
-                  <button 
-                    type="button"
-                    onClick={() => { coverImageInputRef.current?.click(); setShowCoverDropdown(false); }}
-                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-[#f5f5f5] dark:hover:bg-[#232325]"
-                  >
-                    <Upload className="h-4 w-4" />
-                    Enviar do computador
-                  </button>
-                  {coverImage && (
-                    <button 
-                      type="button"
-                      onClick={() => { setCoverImage(null); setShowCoverDropdown(false); }}
-                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-[#f32c2c] hover:bg-[#fee2e2] dark:hover:bg-[#311514]"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                      Remover capa atual
-                    </button>
-                  )}
-                  {attachments.filter(a => a.type === 'image').length > 0 && (
-                    <>
-                      <div className="my-1 h-px bg-[#e5e5e5] dark:bg-[#2a2a2a]" />
-                      <p className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-[#a3a3a3]">Dos anexos</p>
-                      {attachments.filter(a => a.type === 'image').map(a => (
-                        <button 
-                          key={a.id}
-                          type="button"
-                          onClick={() => {
-                            setCoverImage('/src/assets/task-cover-demo.png');
-                            setShowCoverDropdown(false);
-                          }}
-                          className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-[#f5f5f5] dark:hover:bg-[#232325]"
-                        >
-                          <Image className="h-4 w-4" />
-                          <span className="truncate">{a.name}</span>
-                        </button>
-                      ))}
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
-            
             <button onClick={onClose} className="rounded-lg p-1.5 transition-colors hover:bg-[#f5f5f5] dark:hover:bg-[#2a2a2a]">
               <X className="h-4 w-4 text-[#a3a3a3]" />
             </button>
@@ -412,6 +368,7 @@ export function CreateTaskModal({
           onClick={() => {
             setTagPickerKey(null);
             setShowColorPicker(false);
+            setShowHighlightPicker(false);
             setShowColumnDropdown(false);
             setShowClientDropdown(false);
             setShowAssigneeDropdown(false);
@@ -488,6 +445,17 @@ export function CreateTaskModal({
             onChange={handleCoverImageChange}
           />
 
+          {/* ── Add Cover Button (sem capa) ── */}
+          {!coverImage && (
+            <button
+              type="button"
+              onClick={() => coverImageInputRef.current?.click()}
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-[#d4d4d4] bg-[#fafafa]/50 py-3 text-[12px] font-semibold text-[#a3a3a3] transition-colors hover:border-[#ff5623]/50 hover:bg-[#fff8f6] hover:text-[#ff5623] dark:border-[#2a2a2a] dark:bg-[#1e1e1e]/50 dark:hover:border-[#ff5623]/40 dark:hover:text-[#ff8c69]"
+            >
+              <ImagePlus className="h-4 w-4" /> Adicionar capa
+            </button>
+          )}
+
           <div>
             <label className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-[#a3a3a3]">
               <Type className="h-3 w-3" /> Título
@@ -503,14 +471,17 @@ export function CreateTaskModal({
 
           <div>
             <label className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-[#a3a3a3]">Descrição</label>
-            <div className="flex items-center gap-1 rounded-t-xl border border-b-0 border-[#e5e5e5] bg-[#fafafa] px-3 py-2 dark:border-[#2a2a2a] dark:bg-[#1e1e1e]">
-              <button onMouseDown={(event) => { event.preventDefault(); applyFormat('bold'); }} className="rounded-lg p-1.5 transition-colors hover:bg-[#e5e5e5] dark:hover:bg-[#2a2a2a]">
+            <div className="flex items-center gap-1 overflow-x-auto rounded-t-xl border border-b-0 border-[#e5e5e5] bg-[#fafafa] px-3 py-2 dark:border-[#2a2a2a] dark:bg-[#1e1e1e]">
+              {/* Bold */}
+              <button onMouseDown={(event) => { event.preventDefault(); applyFormat('bold'); }} className="shrink-0 rounded-lg p-1.5 transition-colors hover:bg-[#e5e5e5] dark:hover:bg-[#2a2a2a]">
                 <Bold className="h-3.5 w-3.5 text-[#525252] dark:text-[#a3a3a3]" />
               </button>
-              <button onMouseDown={(event) => { event.preventDefault(); applyFormat('italic'); }} className="rounded-lg p-1.5 transition-colors hover:bg-[#e5e5e5] dark:hover:bg-[#2a2a2a]">
+              {/* Italic */}
+              <button onMouseDown={(event) => { event.preventDefault(); applyFormat('italic'); }} className="shrink-0 rounded-lg p-1.5 transition-colors hover:bg-[#e5e5e5] dark:hover:bg-[#2a2a2a]">
                 <Italic className="h-3.5 w-3.5 text-[#525252] dark:text-[#a3a3a3]" />
               </button>
-              <div className="mx-1 h-4 w-px bg-[#e5e5e5] dark:bg-[#2a2a2a]" />
+              <div className="mx-1 h-4 w-px shrink-0 bg-[#e5e5e5] dark:bg-[#2a2a2a]" />
+              {/* Font size */}
               <select
                 value={fontSize}
                 onChange={(event) => {
@@ -518,43 +489,67 @@ export function CreateTaskModal({
                   setFontSize(nextValue);
                   applyFormat('fontSize', nextValue === '12px' ? '1' : nextValue === '14px' ? '2' : nextValue === '16px' ? '3' : nextValue === '18px' ? '4' : nextValue === '20px' ? '5' : '6');
                 }}
-                className="h-6 rounded-lg border border-[#e5e5e5] bg-transparent px-1.5 text-[11px] font-semibold text-[#525252] focus:outline-none dark:border-[#2a2a2a] dark:text-[#a3a3a3]"
+                className="h-6 shrink-0 rounded-lg border border-[#e5e5e5] bg-transparent px-1.5 text-[11px] font-semibold text-[#525252] focus:outline-none dark:border-[#2a2a2a] dark:text-[#a3a3a3]"
               >
-                {FONT_SIZES.map((size) => (
-                  <option key={size} value={size}>
-                    {size}
-                  </option>
-                ))}
+                {FONT_SIZES.map((size) => <option key={size} value={size}>{size}</option>)}
               </select>
-              <div className="mx-1 h-4 w-px bg-[#e5e5e5] dark:bg-[#2a2a2a]" />
-              <div className="relative" onClick={(event) => event.stopPropagation()}>
+              {/* Heading */}
+              <select
+                value={heading}
+                onChange={(event) => {
+                  const val = event.target.value;
+                  setHeading(val);
+                  descRef.current?.focus();
+                  document.execCommand('formatBlock', false, val);
+                }}
+                className="h-6 shrink-0 rounded-lg border border-[#e5e5e5] bg-transparent px-1.5 text-[11px] font-semibold text-[#525252] focus:outline-none dark:border-[#2a2a2a] dark:text-[#a3a3a3]"
+                title="Estilo do parágrafo"
+              >
+                <option value="p">P</option>
+                <option value="h1">H1</option>
+                <option value="h2">H2</option>
+                <option value="h3">H3</option>
+              </select>
+              <div className="mx-1 h-4 w-px shrink-0 bg-[#e5e5e5] dark:bg-[#2a2a2a]" />
+              {/* Text color — fixed popup */}
+              <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
                 <button
                   onMouseDown={(event) => {
                     event.preventDefault();
+                    const rect = event.currentTarget.getBoundingClientRect();
+                    setColorPickerPos({ top: rect.bottom + 6, left: rect.left });
                     setShowColorPicker((current) => !current);
+                    setShowHighlightPicker(false);
                   }}
-                  className="flex items-center gap-1.5 rounded-lg p-1.5 transition-colors hover:bg-[#e5e5e5] dark:hover:bg-[#2a2a2a]"
+                  className="flex items-center gap-1 rounded-lg p-1.5 text-[#525252] transition-colors hover:bg-[#e5e5e5] dark:text-[#a3a3a3] dark:hover:bg-[#2a2a2a]"
+                  title="Cor do texto"
                 >
-                  <span className="text-sm font-bold" style={{ color: textColor }}>A</span>
-                  <div className="h-1.5 w-3 rounded-sm" style={{ backgroundColor: textColor }} />
+                  <span
+                    className="text-sm font-bold"
+                    style={textColor !== '#171717' ? { color: textColor === '#ffffff' ? '#d4d4d4' : textColor } : {}}
+                  >A</span>
+                  <div className="h-1.5 w-3 rounded-sm" style={{ backgroundColor: textColor, boxShadow: textColor === '#ffffff' ? 'inset 0 0 0 1px #d4d4d4' : 'none' }} />
                 </button>
-                {showColorPicker && (
-                  <div className="absolute left-0 top-8 z-50 flex gap-1.5 rounded-xl border border-[#e5e5e5] bg-white p-2 shadow-xl dark:border-[#2a2a2a] dark:bg-[#1e1e1e]">
-                    {TEXT_COLORS.map((color) => (
-                      <button
-                        key={color}
-                        onMouseDown={(event) => {
-                          event.preventDefault();
-                          setTextColor(color);
-                          applyFormat('foreColor', color);
-                          setShowColorPicker(false);
-                        }}
-                        className="h-5 w-5 rounded-full border-2 transition-transform hover:scale-110"
-                        style={{ backgroundColor: color, borderColor: textColor === color ? '#171717' : 'transparent' }}
-                      />
-                    ))}
-                  </div>
-                )}
+              </div>
+              {/* Highlight color — fixed popup */}
+              <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
+                <button
+                  onMouseDown={(event) => {
+                    event.preventDefault();
+                    const rect = event.currentTarget.getBoundingClientRect();
+                    setHighlightPickerPos({ top: rect.bottom + 6, left: rect.left });
+                    setShowHighlightPicker((current) => !current);
+                    setShowColorPicker(false);
+                  }}
+                  className="flex items-center gap-1 rounded-lg p-1.5 transition-colors hover:bg-[#e5e5e5] dark:hover:bg-[#2a2a2a]"
+                  title="Marcador de texto"
+                >
+                  <Highlighter
+                    className="h-3.5 w-3.5 shrink-0 text-[#525252] dark:text-[#a3a3a3]"
+                    style={highlightColor !== 'transparent' ? { color: highlightColor } : {}}
+                  />
+                  <div className="h-1.5 w-3 rounded-sm" style={{ backgroundColor: highlightColor !== 'transparent' ? highlightColor : 'transparent', boxShadow: '0 0 0 1px #888888' }} />
+                </button>
               </div>
             </div>
             <div
@@ -1082,20 +1077,17 @@ export function CreateTaskModal({
               <label className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-[#a3a3a3]">
                 <Calendar className="h-3 w-3" /> Data de entrega
               </label>
-              <div className="grid grid-cols-[minmax(0,1fr)_112px] gap-2">
-                <input
-                  type="date"
-                  value={dueDate}
-                  onChange={(event) => setDueDate(event.target.value)}
-                  className="h-10 w-full rounded-xl border border-[#e5e5e5] bg-[#fafafa] px-4 text-sm text-[#171717] transition-all focus:border-[#ff5623] focus:outline-none focus:ring-2 focus:ring-[#ff5623]/20 dark:border-[#2a2a2a] dark:bg-[#1e1e1e] dark:text-[#f5f5f5]"
-                />
-                <input
-                  type="time"
-                  value={dueTime}
-                  onChange={(event) => setDueTime(event.target.value)}
-                  className="h-10 w-full rounded-xl border border-[#e5e5e5] bg-[#fafafa] px-3 text-sm text-[#171717] transition-all focus:border-[#ff5623] focus:outline-none focus:ring-2 focus:ring-[#ff5623]/20 dark:border-[#2a2a2a] dark:bg-[#1e1e1e] dark:text-[#f5f5f5]"
-                />
-              </div>
+              <DateTimePicker
+                variant="field"
+                value={buildTaskDueDateValue(dueDate, dueTime)}
+                placeholder="Selecionar data e hora"
+                onChange={(val) => {
+                  const parts = getTaskDueDateInputParts(val);
+                  setDueDate(parts.date);
+                  setDueTime(parts.time);
+                }}
+                onClear={() => { setDueDate(''); setDueTime(''); }}
+              />
             </div>
             <div>
               <label className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-[#a3a3a3]">
@@ -1134,6 +1126,68 @@ export function CreateTaskModal({
           </button>
         </div>
       </div>
+
+      {/* ── Fixed color picker popup ────────────────────────────────────────── */}
+      {showColorPicker && (
+        <div
+          className="fixed z-[500] flex flex-nowrap gap-1.5 rounded-xl border border-[#e5e5e5] bg-white p-2 shadow-xl dark:border-[#2a2a2a] dark:bg-[#1e1e1e]"
+          style={{ top: colorPickerPos.top, left: colorPickerPos.left }}
+          onMouseDown={(e) => e.preventDefault()}
+        >
+          {TEXT_COLORS.map((color) => (
+            <button
+              key={color}
+              onMouseDown={(event) => {
+                event.preventDefault();
+                setTextColor(color);
+                applyFormat('foreColor', color);
+                setShowColorPicker(false);
+              }}
+              className="h-5 w-5 shrink-0 rounded-full transition-transform hover:scale-110"
+              style={{
+                backgroundColor: color,
+                boxShadow:
+                  textColor === color
+                    ? '0 0 0 2px #171717'
+                    : color === '#ffffff'
+                    ? '0 0 0 1.5px #d4d4d4'
+                    : '0 0 0 1.5px transparent',
+              }}
+              title={color}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* ── Fixed highlight picker popup ─────────────────────────────────────── */}
+      {showHighlightPicker && (
+        <div
+          className="fixed z-[500] flex flex-nowrap gap-1.5 rounded-xl border border-[#e5e5e5] bg-white p-2 shadow-xl dark:border-[#2a2a2a] dark:bg-[#1e1e1e]"
+          style={{ top: highlightPickerPos.top, left: highlightPickerPos.left }}
+          onMouseDown={(e) => e.preventDefault()}
+        >
+          {HIGHLIGHT_COLORS.map(({ color, label }) => (
+            <button
+              key={color}
+              onMouseDown={(event) => {
+                event.preventDefault();
+                setHighlightColor(color);
+                applyFormat('backColor', color === 'transparent' ? 'transparent' : color);
+                setShowHighlightPicker(false);
+              }}
+              className="h-5 w-5 shrink-0 rounded-full transition-transform hover:scale-110"
+              style={{
+                backgroundColor: color === 'transparent' ? '#ffffff' : color,
+                boxShadow:
+                  highlightColor === color
+                    ? '0 0 0 2px #171717'
+                    : '0 0 0 1.5px #d4d4d4',
+              }}
+              title={label}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

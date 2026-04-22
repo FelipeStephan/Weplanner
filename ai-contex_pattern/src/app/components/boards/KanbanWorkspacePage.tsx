@@ -1652,6 +1652,37 @@ export function KanbanWorkspacePage({
   };
 
   const handleTaskInlineEdit = (cardId: string, updates: Partial<BoardCard>, actionDescription: string, actionIcon: 'edit' | 'create' | 'move' | 'complete' | 'archive' | 'cancel' | 'send' = 'edit') => {
+    const tagColorNames: NonNullable<BoardCard['tagColors']> = [
+      'orange',
+      'blue',
+      'green',
+      'purple',
+      'pink',
+      'yellow',
+      'red',
+      'gray',
+    ];
+    const isTagColorName = (value: unknown): value is NonNullable<BoardCard['tagColors']>[number] =>
+      typeof value === 'string' && tagColorNames.includes(value as NonNullable<BoardCard['tagColors']>[number]);
+    const hexToTagColorName: Record<string, NonNullable<BoardCard['tagColors']>[number]> = {
+      '#ff5623': 'orange',
+      '#ffedd5': 'orange',
+      '#3b82f6': 'blue',
+      '#dbeafe': 'blue',
+      '#019364': 'green',
+      '#dcfce7': 'green',
+      '#987dfe': 'purple',
+      '#f3e8ff': 'purple',
+      '#ffbee9': 'pink',
+      '#fce7f3': 'pink',
+      '#feba31': 'yellow',
+      '#fef3c7': 'yellow',
+      '#f32c2c': 'red',
+      '#fee2e2': 'red',
+      '#e5e5e5': 'gray',
+      '#f3f4f6': 'gray',
+    };
+
     applyCardsUpdate(
       (current) =>
         current.map((card) => {
@@ -1673,9 +1704,63 @@ export function KanbanWorkspacePage({
             },
           ];
 
+          const normalizedUpdates: Partial<BoardCard> = { ...updates };
+          const incomingTags = (updates as { tags?: unknown }).tags;
+
+          if (Array.isArray(incomingTags)) {
+            const normalizedTagLabels: string[] = [];
+            const normalizedTagColors: NonNullable<BoardCard['tagColors']> = [];
+
+            incomingTags.forEach((rawTag, index) => {
+              if (typeof rawTag === 'string') {
+                const trimmed = rawTag.trim();
+                if (!trimmed) return;
+                normalizedTagLabels.push(trimmed);
+                normalizedTagColors.push(card.tagColors?.[index] ?? 'gray');
+                return;
+              }
+
+              if (!rawTag || typeof rawTag !== 'object') {
+                return;
+              }
+
+              const tagRecord = rawTag as {
+                label?: unknown;
+                color?: unknown;
+              };
+              const label = typeof tagRecord.label === 'string' ? tagRecord.label.trim() : '';
+
+              if (!label) {
+                return;
+              }
+
+              let resolvedColor: NonNullable<BoardCard['tagColors']>[number] = 'gray';
+              const rawColor = tagRecord.color;
+
+              if (isTagColorName(rawColor)) {
+                resolvedColor = rawColor;
+              } else if (typeof rawColor === 'string') {
+                resolvedColor = hexToTagColorName[rawColor.toLowerCase()] ?? 'gray';
+              } else if (rawColor && typeof rawColor === 'object') {
+                const colorRecord = rawColor as { colorName?: unknown; bg?: unknown };
+                if (isTagColorName(colorRecord.colorName)) {
+                  resolvedColor = colorRecord.colorName;
+                } else if (typeof colorRecord.bg === 'string') {
+                  resolvedColor = hexToTagColorName[colorRecord.bg.toLowerCase()] ?? 'gray';
+                }
+              }
+
+              normalizedTagLabels.push(label);
+              normalizedTagColors.push(resolvedColor);
+            });
+
+            normalizedUpdates.tags = normalizedTagLabels;
+            normalizedUpdates.tagColors = normalizedTagColors;
+          }
+
           return {
             ...card,
-            ...updates,
+            ...normalizedUpdates,
             activityLog: newActivityLogs,
             updatedAt: now,
           };

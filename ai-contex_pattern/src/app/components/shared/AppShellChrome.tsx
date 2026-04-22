@@ -6,10 +6,10 @@ import {
   ChevronDown,
   FolderKanban,
   LayoutDashboard,
-  LogOut,
   Moon,
   MoreHorizontal,
-  Plus,
+  Pin,
+  ScrollText,
   Settings,
   Sparkles,
   Sun,
@@ -22,7 +22,7 @@ import type { BoardRecord } from '../../../domain/kanban/contracts';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { cn } from '../ui/utils';
 
-export type AppShellPage = 'overview-dashboard' | 'design-system' | 'kanban-workspace' | 'reports-dashboard' | 'team' | 'settings' | 'clients';
+export type AppShellPage = 'overview-dashboard' | 'design-system' | 'kanban-workspace' | 'boards-directory' | 'reports-dashboard' | 'team' | 'settings' | 'clients' | 'changelog';
 
 interface AppShellSidebarProps {
   collapsed: boolean;
@@ -37,11 +37,11 @@ interface AppShellSidebarProps {
   onOpenTeam?: () => void;
   onOpenSettings?: () => void;
   onOpenClients?: () => void;
-  boards: BoardRecord[];
+  onOpenChangelog?: () => void;
+  /** Only pinned boards — shown as a compact list below the Board menu item */
+  pinnedBoards: BoardRecord[];
   activeBoardId?: string | null;
   onSelectBoard: (boardId: string) => void;
-  onCreateBoard?: () => void;
-  canCreateBoards?: boolean;
   userName: string;
   userImage?: string;
   userRole?: 'client' | 'manager' | 'collaborator';
@@ -57,16 +57,21 @@ const SIDEBAR_ITEMS: Array<{
   managerOnly?: boolean;
 }> = [
   { key: 'overview-dashboard', label: 'Visao geral', icon: LayoutDashboard },
-  { key: 'kanban-workspace', label: 'Board', icon: FolderKanban },
+  { key: 'boards-directory', label: 'Board', icon: FolderKanban },
   { key: 'reports-dashboard', label: 'Relatorios', icon: BarChart3 },
   { key: 'team', label: 'Equipe', icon: Users },
   { key: 'clients', label: 'Clientes', icon: Building2, managerOnly: true },
   { key: 'settings', label: 'Configurações', icon: Settings, managerOnly: true },
   { key: 'design-system', label: 'Design System', icon: Sparkles },
+  { key: 'changelog', label: 'Atualizações', icon: ScrollText },
 ];
 
-const isActiveItem = (activePage: AppShellPage, itemKey: AppShellPage | 'team') =>
-  activePage === itemKey;
+const isActiveItem = (activePage: AppShellPage, itemKey: AppShellPage | 'team') => {
+  if (activePage === itemKey) return true;
+  // Keep Board item highlighted when inside a kanban workspace
+  if (itemKey === 'boards-directory' && activePage === 'kanban-workspace') return true;
+  return false;
+};
 
 export function AppShellSidebar({
   collapsed,
@@ -81,11 +86,10 @@ export function AppShellSidebar({
   onOpenTeam,
   onOpenSettings,
   onOpenClients,
-  boards,
+  onOpenChangelog,
+  pinnedBoards,
   activeBoardId,
   onSelectBoard,
-  onCreateBoard,
-  canCreateBoards = false,
   userName,
   userImage,
   userRole = 'collaborator',
@@ -94,6 +98,7 @@ export function AppShellSidebar({
   notificationCount = 0,
 }: AppShellSidebarProps) {
   const [isBoardsExpanded, setIsBoardsExpanded] = useState(true);
+
   const userRoleLabel =
     userTitle ||
     (userRole === 'manager'
@@ -172,7 +177,7 @@ export function AppShellSidebar({
             const action =
               item.key === 'overview-dashboard'
                 ? onOpenOverview
-                : item.key === 'kanban-workspace'
+                : item.key === 'boards-directory'
                 ? onOpenBoard
                 : item.key === 'reports-dashboard'
                   ? onOpenReports
@@ -184,18 +189,20 @@ export function AppShellSidebar({
                         ? onOpenSettings
                         : item.key === 'design-system'
                           ? onOpenDesignSystem
-                          : undefined;
+                          : item.key === 'changelog'
+                            ? onOpenChangelog
+                            : undefined;
 
             // Hide settings item for non-managers
             if (item.managerOnly && userRole !== 'manager') return null;
 
             return (
-              <div key={item.key} className="space-y-2">
-                <div className="flex items-center gap-2">
+              <div key={item.key} className="space-y-1">
+                <div className="flex items-center gap-1">
                   <button
                     onClick={action}
                     className={cn(
-                      'flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-sm transition-colors',
+                      'flex flex-1 items-center gap-3 rounded-2xl px-3 py-3 text-sm transition-colors',
                       isActive
                         ? 'bg-[#F6F8F6] text-[#171717] dark:bg-[#1A1B1C] dark:text-white'
                         : 'text-[#525252] hover:bg-[#F6F8F6] dark:text-[#A3A3A3] dark:hover:bg-[#1A1B1C]',
@@ -228,69 +235,54 @@ export function AppShellSidebar({
                             ) : null}
                           </>
                         )}
-                        {item.key === 'kanban-workspace' && (
-                          <button
-                            type="button"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              setIsBoardsExpanded((current) => !current);
-                            }}
-                            className="ml-auto inline-flex items-center gap-2 rounded-lg p-1 text-[#8A8A8A] transition-colors hover:bg-[#EEF1EF] hover:text-[#171717] dark:text-[#A3A3A3] dark:hover:bg-[#242526] dark:hover:text-white"
-                            aria-label={isBoardsExpanded ? 'Recolher boards' : 'Expandir boards'}
-                          >
-                            <ChevronDown
-                              className={cn(
-                                'h-4 w-4 transition-transform duration-200',
-                                !isBoardsExpanded && '-rotate-90',
-                              )}
-                            />
-                          </button>
-                        )}
                       </span>
                     )}
                   </button>
 
-                  {!collapsed && item.key === 'kanban-workspace' && canCreateBoards && onCreateBoard && (
+                  {/* Expand/collapse toggle for pinned boards */}
+                  {!collapsed && item.key === 'boards-directory' && pinnedBoards.length > 0 && (
                     <button
                       type="button"
-                      onClick={onCreateBoard}
-                      className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-[#E5E7E4] bg-white text-[#525252] transition-colors hover:border-[#ff5623]/25 hover:bg-[#FFF4EE] hover:text-[#c2410c] dark:border-[#2D2F30] dark:bg-[#171819] dark:text-[#D4D4D4] dark:hover:border-[#ff8c69]/35 dark:hover:bg-[#26150f] dark:hover:text-[#ffb39c]"
-                      title="Criar board"
+                      onClick={() => setIsBoardsExpanded((v) => !v)}
+                      title={isBoardsExpanded ? 'Recolher boards' : 'Expandir boards'}
+                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-[#A3A3A3] transition-colors hover:bg-[#F6F8F6] hover:text-[#525252] dark:hover:bg-[#1A1B1C] dark:hover:text-[#D4D4D4]"
                     >
-                      <Plus className="h-3.5 w-3.5" />
+                      <ChevronDown
+                        className={cn(
+                          'h-3.5 w-3.5 transition-transform duration-200',
+                          !isBoardsExpanded && '-rotate-90',
+                        )}
+                      />
                     </button>
                   )}
                 </div>
 
-                {!collapsed && item.key === 'kanban-workspace' && boards.length > 0 && isBoardsExpanded && (
-                  <div className="space-y-1 pl-5">
-                    {boards.map((board) => {
+                {/* Pinned boards — compact list with Pin icon, collapsible */}
+                {!collapsed && item.key === 'boards-directory' && pinnedBoards.length > 0 && isBoardsExpanded && (
+                  <div className="space-y-0.5 pl-4 pt-0.5">
+                    {pinnedBoards.map((board) => {
                       const isBoardActive = activeBoardId === board.id;
-
                       return (
                         <button
                           key={board.id}
                           type="button"
                           onClick={() => onSelectBoard(board.id)}
                           className={cn(
-                            'flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-sm transition-colors',
+                            'flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left transition-colors',
                             isBoardActive
                               ? 'bg-[#FFF4EE] text-[#c2410c] dark:bg-[#26150f] dark:text-[#ffb39c]'
                               : 'text-[#666666] hover:bg-[#F6F8F6] dark:text-[#B4B4B4] dark:hover:bg-[#1A1B1C]',
                           )}
                         >
-                          <span className={cn(
-                            'h-2.5 w-2.5 rounded-full',
-                            isBoardActive ? 'bg-[#ff5623]' : 'bg-[#D5D8D5] dark:bg-[#3A3D3F]',
-                          )} />
-                          <div className="min-w-0">
-                            <p className="truncate font-medium">{board.name}</p>
-                            {board.description && (
-                              <p className="truncate text-[11px] text-[#A3A3A3] dark:text-[#737373]">
-                                {board.description}
-                              </p>
+                          <Pin
+                            className={cn(
+                              'h-3 w-3 shrink-0',
+                              isBoardActive
+                                ? 'text-[#ff5623]'
+                                : 'text-[#C4C7C4] dark:text-[#4A4D4F]',
                             )}
-                          </div>
+                          />
+                          <p className="truncate text-[13px] font-medium leading-none">{board.name}</p>
                         </button>
                       );
                     })}

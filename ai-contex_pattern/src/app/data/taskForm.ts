@@ -1,10 +1,10 @@
 import type { WorkflowStatus } from "../../domain/kanban/contracts";
 
 export const PRIORITY_OPTIONS = [
-  { value: 'low', label: 'Baixa', activeBg: 'bg-[#16a34a]', passiveBg: 'bg-[#dcfce7]', passiveText: 'text-[#16a34a]' },
-  { value: 'medium', label: 'Média', activeBg: 'bg-[#ca8a04]', passiveBg: 'bg-[#fef9c3]', passiveText: 'text-[#a16207]' },
-  { value: 'high', label: 'Alta', activeBg: 'bg-[#dc2626]', passiveBg: 'bg-[#fee2e2]', passiveText: 'text-[#dc2626]' },
-  { value: 'urgent', label: 'Urgente', activeBg: 'bg-[#7e22ce]', passiveBg: 'bg-[#f3e8ff]', passiveText: 'text-[#7e22ce]' },
+  { value: 'low',    label: 'Baixa',   activeBg: 'bg-[#16a34a]', passiveBg: 'bg-[#dcfce7] dark:bg-[#16a34a]/15', passiveText: 'text-[#16a34a] dark:text-[#4ade80]' },
+  { value: 'medium', label: 'Média',   activeBg: 'bg-[#ca8a04]', passiveBg: 'bg-[#fef9c3] dark:bg-[#ca8a04]/15', passiveText: 'text-[#a16207] dark:text-[#fbbf24]' },
+  { value: 'high',   label: 'Alta',    activeBg: 'bg-[#dc2626]', passiveBg: 'bg-[#fee2e2] dark:bg-[#dc2626]/15', passiveText: 'text-[#dc2626] dark:text-[#f87171]' },
+  { value: 'urgent', label: 'Urgente', activeBg: 'bg-[#7e22ce]', passiveBg: 'bg-[#f3e8ff] dark:bg-[#7e22ce]/15', passiveText: 'text-[#7e22ce] dark:text-[#c084fc]' },
 ] as const;
 
 export const WORKFLOW_STAGE_LABELS: Record<WorkflowStatus, string> = {
@@ -31,7 +31,18 @@ export const TAG_PALETTE_CREATE = [
 export const FONT_SIZES = ['12px', '14px', '16px', '18px', '20px', '24px'];
 
 export const TEXT_COLORS = [
-  '#171717', '#ff5623', '#019364', '#987dfe', '#3b82f6', '#f32c2c', '#ca8a04',
+  '#171717', '#ffffff', '#ff5623', '#019364', '#987dfe', '#3b82f6', '#f32c2c', '#ca8a04',
+];
+
+/** Highlight/marker colors for rich text editor */
+export const HIGHLIGHT_COLORS = [
+  { color: 'transparent', label: 'Sem marcação' },
+  { color: '#fef08a', label: 'Amarelo' },
+  { color: '#fed7aa', label: 'Laranja' },
+  { color: '#bbf7d0', label: 'Verde' },
+  { color: '#bfdbfe', label: 'Azul' },
+  { color: '#e9d5ff', label: 'Roxo' },
+  { color: '#fecdd3', label: 'Rosa' },
 ];
 
 // ─── Mock clients (used in task forms) ───────────────────────────────────────

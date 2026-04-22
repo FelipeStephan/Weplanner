@@ -73,6 +73,20 @@ export const getRouteStateFromHash = (): {
     };
   }
 
+  if (path === "/changelog") {
+    return {
+      pageView: "changelog",
+      boardId: null,
+    };
+  }
+
+  if (path === "/boards-directory") {
+    return {
+      pageView: "boards-directory",
+      boardId: null,
+    };
+  }
+
   return {
     pageView: "overview-dashboard",
     boardId,

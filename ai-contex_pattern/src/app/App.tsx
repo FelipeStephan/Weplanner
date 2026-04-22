@@ -27,6 +27,9 @@ import type { Role, PageView } from "./types/navigation";
 import { getRouteStateFromHash } from "./utils/routeState";
 import { GlobalModals } from "./components/shared/GlobalModals";
 import { DesignSystemPage } from "./pages/DesignSystemPage";
+import { ChangelogPage } from "./pages/ChangelogPage";
+import { BoardsDirectoryPage } from "./pages/BoardsDirectoryPage";
+import { usePinnedBoards } from "./hooks/usePinnedBoards";
 import { useNotifications } from "./hooks/useNotifications";
 import { useClientsData } from "./hooks/useClientsData";
 import {
@@ -36,6 +39,8 @@ import {
   openTeamPage,
   openSettingsPage,
   openClientsPage,
+  openChangelogPage,
+  openBoardsDirectoryPage,
 } from "./utils/navigation";
 
 export default function App() {
@@ -78,6 +83,7 @@ export default function App() {
     bumpOverviewFocus,
   } = useNotifications();
   const { clientsList, refreshClients } = useClientsData();
+  const { pinnedIds, togglePin } = usePinnedBoards();
   const initialWorkspaceSeed = useMemo(
     () => createInitialKanbanWorkspaceSnapshot(),
     [],
@@ -235,16 +241,15 @@ export default function App() {
           onToggleDarkMode={() => setDarkMode(!darkMode)}
           onOpenOverview={openOverviewDashboardPage}
           onOpenDesignSystem={openDesignSystemPage}
-          onOpenBoard={() => openKanbanWorkspacePage()}
+          onOpenBoard={openBoardsDirectoryPage}
           onOpenReports={openReportsDashboardPage}
           onOpenTeam={openTeamPage}
           onOpenSettings={openSettingsPage}
           onOpenClients={openClientsPage}
-          boards={visibleBoards}
+          onOpenChangelog={openChangelogPage}
+          pinnedBoards={visibleBoards.filter((b) => pinnedIds.includes(b.id))}
           activeBoardId={selectedBoardId}
           onSelectBoard={(boardId) => openKanbanWorkspacePage(boardId)}
-          onCreateBoard={() => setCreateBoardModalOpen(true)}
-          canCreateBoards={activeRole === "manager"}
           userName={activeShellUser.name}
           userImage={activeShellUser.image}
           userRole={activeRole}
@@ -391,6 +396,21 @@ export default function App() {
           <DesignSystemPage
             notifications={notifications}
             onOpenBoard={openKanbanWorkspacePage}
+          />
+        )}
+
+        {pageView === "changelog" && (
+          <ChangelogPage />
+        )}
+
+        {pageView === "boards-directory" && (
+          <BoardsDirectoryPage
+            boards={visibleBoards}
+            pinnedIds={pinnedIds}
+            onTogglePin={togglePin}
+            onOpenBoard={(boardId) => openKanbanWorkspacePage(boardId)}
+            onCreateBoard={() => setCreateBoardModalOpen(true)}
+            canCreateBoards={activeRole === "manager"}
           />
         )}
       </main>

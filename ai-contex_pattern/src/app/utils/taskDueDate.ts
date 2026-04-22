@@ -77,7 +77,7 @@ export function formatTaskDueDate(value?: string | null, fallbackYear = 2026) {
 
   if (!parsed.hasTime) return baseLabel;
 
-  return `${baseLabel} ${pad(parsed.date.getHours())}:${pad(parsed.date.getMinutes())}`;
+  return `${baseLabel} às ${pad(parsed.date.getHours())}:${pad(parsed.date.getMinutes())}`;
 }
 
 export function getTaskDueDateState(value?: string | null, now = new Date()): TaskDueDateState {

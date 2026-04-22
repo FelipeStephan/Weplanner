@@ -21,4 +21,6 @@ export type PageView =
   | "reports-dashboard"
   | "team"
   | "settings"
-  | "clients";
+  | "clients"
+  | "changelog"
+  | "boards-directory";

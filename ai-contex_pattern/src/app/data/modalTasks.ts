@@ -1,5 +1,6 @@
 import { AVATAR_URLS } from "./avatars";
 import { TEAM } from "./team";
+import { MOCK_COMMENTS } from "./modalComments";
 export { MOCK_COMMENTS } from "./modalComments";
 
 export const MODAL_TASK_DATA: Record<string, any> = {
