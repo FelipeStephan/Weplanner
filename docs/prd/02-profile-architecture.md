@@ -15,7 +15,7 @@ WePlanner existe em torno de uma relação triangular:
 [COLABORADOR] [CLIENTE]
 ```
 
-O **Gestor** orquestra. O **Colaborador** executa. O **Cliente** observa e confia.
+O **Gestor** orquestra. O **Colaborador** executa. O **Cliente** participa e aprova.
 
 Cada perfil tem um "emprego" diferente a ser feito (Jobs-to-be-Done) — e uma superfície de produto diferente que serve esse emprego. O erro mais comum em ferramentas de agência é tratar os três perfis como versões com mais/menos acesso do mesmo produto. WePlanner trata cada um como um produto dentro do produto.
 
@@ -113,57 +113,77 @@ O executor. Pode ser um designer, redator, desenvolvedor, analista de mídias so
 ## Perfil 3: Cliente
 
 ### Quem é
-O contratante. É quem paga pela agência e quer visibilidade do que está sendo feito. Não é um usuário operacional — é um stakeholder que precisa de confiança e transparência, não de controles.
+O contratante. É quem paga pela agência e participa ativamente do processo de entrega — criando demandas, aprovando entregas e acompanhando o consumo do seu contrato. Não é um observador passivo — é um participante com voz no fluxo de trabalho, dentro do espaço que a agência autoriza.
 
 ### Job-to-be-Done principal
-> "Quero saber o que está sendo feito com o meu dinheiro, sem precisar mandar mensagem toda hora para a agência."
+> "Quero ter controle sobre o que estou pedindo, acompanhar o andamento em tempo real e aprovar ou reprovar sem precisar mandar mensagem para a agência toda vez."
 
 ### Dores específicas
-- Sensação de que o trabalho é uma caixa preta
+- Sensação de que o trabalho é uma caixa preta — não sabe o que está acontecendo
 - Não saber quanto do contrato já foi usado
-- Precisar esperar reunião para ver andamento
-- Não ter histórico do que já foi entregue
+- Precisar esperar reunião ou e-mail para dar feedback
+- Processo de aprovação é manual e desorganizado (WhatsApp, e-mail)
+- Não ter histórico do que já foi entregue e aprovado
 
 ### Superfícies de valor no WePlanner
 
 | Superfície | Valor entregue |
 |-----------|---------------|
 | Portal do Cliente | Visão exclusiva dos projetos e entregas que dizem respeito a ele |
-| Boards vinculados ao cliente | Apenas os boards autorizados pela agência |
-| Créditos do cliente | Saldo contratado, consumido, e restante em tempo real |
-| Histórico de entregas | Registro de tudo que foi concluído |
-| Avisos ativos | Alertas sobre prazos, consumo de créditos, e marcos importantes |
+| Boards vinculados ao cliente | Apenas os boards autorizados pela agência — onde pode criar, mover e editar tasks |
+| Task Card | Pode criar novas demandas, editar tasks existentes, fazer upload de referências e comentar |
+| Kanban de aprovação | Move tasks entre colunas para aprovar ou reprovar entregas — sem precisar de e-mail |
+| Créditos do cliente | Saldo contratado, consumido, e restante em tempo real (se habilitado) |
+| Relatório de créditos | Curva de consumo, previsão de esgotamento e detalhe por board (se habilitado) |
+| Avisos ativos | Alertas sobre prazos, consumo de créditos e entregas aguardando sua ação |
 
 ### Permissões
 - Acesso apenas a boards explicitamente vinculados à sua conta de cliente
-- Visualização de tarefas — não pode criar, mover, ou editar
-- Visualização de créditos (contratado, consumido, saldo)
+- **Pode criar tasks** nos boards onde está inserido
+- **Pode editar tasks** nos boards onde está inserido
+- **Pode mover tasks no Kanban** — aprovação e reprovação são feitas movendo cards
+- Pode fazer upload de arquivos em tasks e boards
+- Pode comentar em tasks
+- Visualização de créditos (contratado, consumido, saldo) — se `creditsEnabled = true`
+- Acesso ao relatório de créditos simplificado — se flag `can_view_client_credit_report` ativa
 - Sem acesso a dados de outros clientes
 - Sem acesso a relatórios internos de produtividade da agência
-- Sem visibilidade de campos internos (custo, retrabalho interno, etc.)
+- Sem visibilidade de campos internos (custo, retrabalho, métricas do time)
+- Não pode criar ou gerenciar boards e colunas
+- Não pode gerenciar membros ou permissões
 
-### Jornada típica — "Cliente checando o andamento"
-1. Recebe um email da agência com link para o WePlanner
-2. Loga → vê apenas o board do seu projeto
-3. Vê as tasks: 5 concluídas esta semana, 3 em progresso, 2 a fazer
-4. Clica em "Créditos" → vê que usou 68 de 100 créditos do mês
-5. Abre uma task concluída → vê o deliverable anexado
-6. Fica tranquilo. Não precisou mandar nenhuma mensagem para a agência.
+### Labels de UI adaptadas para o Cliente
+A interface usa terminologia própria para o perfil `CLIENT_EXTERNAL`:
+
+| Label interno | Label para o cliente |
+|--------------|---------------------|
+| Tarefas | Tarefas Solicitadas |
+| Board | Projeto |
+| Colaborador atribuído | Responsável |
+
+### Jornada típica — "Cliente participando ativamente"
+1. Recebe notificação → abre o WePlanner no board do seu projeto
+2. Vê uma task em "Revisão" → abre, analisa o arquivo entregue
+3. Aprova: move o card para "Aprovado" — direto no Kanban, sem e-mail
+4. Abre uma task no backlog → cria uma nova demanda com briefing e referências em anexo
+5. Confere os créditos → vê que usou 68 de 100 créditos do mês, recebe alerta de 80%
+6. Fecha o portal. A agência já recebeu a aprovação e a nova demanda sem nenhuma mensagem manual.
 
 ---
 
 ## Interseções e Tensões
 
 ### Onde os perfis se encontram
-- **Task Card:** o ponto de convergência. O gestor cria e prioriza, o colaborador executa e documenta, o cliente (em alguns workflows) observa ou aprova.
-- **Credits:** o gestor define, a execução do colaborador consome, o cliente acompanha.
-- **Board:** o gestor estrutura, o colaborador habita, o cliente observa (com filtro).
+- **Task Card:** o ponto de convergência. O gestor cria e prioriza, o colaborador executa e documenta, o cliente cria demandas, comenta e aprova movendo cards.
+- **Credits:** o gestor define, a execução do colaborador consome, o cliente acompanha o saldo.
+- **Board:** o gestor estrutura e controla o acesso, o colaborador habita e executa, o cliente participa dentro do espaço autorizado.
 
 ### Tensões intencionais
 
 | Tensão | Decisão de produto |
 |--------|-------------------|
-| Cliente quer ver tudo, agência quer controlar o que mostra | O gestor decide o que é "board visível para cliente" — o cliente nunca vê mais do que o autorizado |
+| Cliente quer liberdade total, agência quer controlar o fluxo | O gestor define quais boards são acessíveis ao cliente — dentro desses boards o cliente tem autonomia para criar, editar e mover |
+| Cliente pode mover tasks para qualquer coluna, agência tem um fluxo interno | A solução é design de board: criar colunas específicas de aprovação/reprovação para que o cliente opere nelas — não restringir tecnicamente |
 | Colaborador precisa de contexto, gestor precisa de velocidade | Task Card é rico por design; o gestor pode criá-la simplificada, o colaborador a enriquece durante a execução |
 | IA sugere créditos, gestor define | A IA é consultiva — a decisão final sempre é do gestor |
 
@@ -176,17 +196,25 @@ O contratante. É quem paga pela agência e quer visibilidade do que está sendo
                    /  |  \
             GESTOR    |    COLABORADOR (apenas boards vinculados)
                       |
-                   CLIENTE (apenas boards autorizados, view-only)
+                   CLIENTE (apenas boards autorizados — participante ativo)
+
+
+AÇÕES NO BOARD
+  └─ Criar boards/colunas:   GESTOR
+  └─ Criar tasks:            GESTOR + COLABORADOR + CLIENTE
+  └─ Editar tasks:           GESTOR + COLABORADOR + CLIENTE
+  └─ Mover tasks (Kanban):   GESTOR + COLABORADOR + CLIENTE
+  └─ Arquivar/cancelar:      GESTOR apenas
 
 
 CREDITS
-  └─ Definido por: GESTOR
-  └─ Consumido por: execução das tarefas
-  └─ Visível para: GESTOR + CLIENTE (saldo)
-  └─ Oculto para: COLABORADOR (detalhe de custo)
+  └─ Definido por:           GESTOR
+  └─ Consumido por:          execução das tarefas (qualquer perfil)
+  └─ Visível para:           GESTOR + CLIENTE (saldo, se creditsEnabled)
+  └─ Oculto para:            COLABORADOR
 
 
 RELATÓRIOS
-  └─ Internos (produtividade, rework): GESTOR apenas
-  └─ Externos (entregas, créditos): CLIENTE via portal
+  └─ Internos (produtividade, rework, time):  GESTOR apenas
+  └─ Créditos simplificado:                  CLIENTE (se can_view_client_credit_report ativo)
 ```
