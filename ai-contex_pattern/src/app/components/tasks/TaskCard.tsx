@@ -1,5 +1,6 @@
 import { Calendar, Check, Diamond, MessageCircle, Paperclip } from 'lucide-react';
 import { StatusBadge } from './StatusBadge';
+import { NewTaskBadge } from './NewTaskBadge';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { formatTaskDueDate, getTaskDueDateState } from '../../utils/taskDueDate';
 import { getRichTextPlainText } from '../../utils/richText';
@@ -31,6 +32,7 @@ interface TaskCardProps {
   priority?: 'low' | 'medium' | 'high';
   credits?: number;
   coverImage?: string | null;
+  isNew?: boolean;
   onClick?: () => void;
   actions?: React.ReactNode;
   hideDescription?: boolean;
@@ -39,17 +41,18 @@ interface TaskCardProps {
   isCompleting?: boolean;
 }
 
-export function TaskCard({ 
-  title, 
+export function TaskCard({
+  title,
   description,
-  status, 
-  assignee, 
+  status,
+  assignee,
   dueDate,
   commentsCount = 0,
   attachmentsCount = 0,
   priority = 'medium',
   credits,
   coverImage,
+  isNew = false,
   onClick,
   actions,
   hideDescription = false,
@@ -62,8 +65,6 @@ export function TaskCard({
   const formattedDueDate = formatTaskDueDate(dueDate);
   const descriptionPreview = getRichTextPlainText(description);
   const getInitials = (name: string) => {
-    return name
-      .split(' ')
     return name
       .split(' ')
       .map(n => n[0])
@@ -79,7 +80,10 @@ export function TaskCard({
     >
       {/* Header */}
       <div className="mb-3 flex items-center justify-between gap-3">
-        <StatusBadge status={status} />
+        <div className="flex items-center gap-2">
+          <StatusBadge status={status} />
+          {isNew && <NewTaskBadge />}
+        </div>
         {actions && <div className="flex items-center gap-1">{actions}</div>}
       </div>
 

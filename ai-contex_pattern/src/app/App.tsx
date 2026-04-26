@@ -66,6 +66,14 @@ export default function App() {
   } | null>(null);
   const [profileAnchor, setProfileAnchor] =
     useState<HTMLElement | null>(null);
+  const [profileMode, setProfileMode] = useState<'own' | 'other'>('other');
+  const [editProfileOpen, setEditProfileOpen] = useState(false);
+  const [profileOverrides, setProfileOverrides] = useState<{
+    name?: string;
+    image?: string | null;
+    title?: string;
+    phone?: string;
+  }>({});
   const [profileDemoOpen, setProfileDemoOpen] = useState(false);
   const [profileDemoAnchor, setProfileDemoAnchor] =
     useState<HTMLElement | null>(null);
@@ -212,6 +220,8 @@ export default function App() {
   ) => {
     setProfileUser(avatar);
     setProfileAnchor(event.currentTarget);
+    // Detecta se é o próprio usuário (próprio nome) → modo 'own'
+    setProfileMode(avatar.name === activeShellUser.name ? 'own' : 'other');
   };
 
   if (pageView === "login") {
@@ -433,7 +443,30 @@ export default function App() {
         onOpenClientLibrary={(clientId) => setSelectedClientLibraryId(clientId)}
         profileUser={profileUser}
         profileAnchor={profileAnchor}
+        profileMode={profileMode}
         onCloseProfile={() => { setProfileUser(null); setProfileAnchor(null); }}
+        onEditProfile={() => {
+          setProfileUser(null);
+          setProfileAnchor(null);
+          setEditProfileOpen(true);
+        }}
+        onLogout={() => {
+          setProfileUser(null);
+          setProfileAnchor(null);
+          window.location.hash = '#/login';
+        }}
+        editProfileOpen={editProfileOpen}
+        onCloseEditProfile={() => setEditProfileOpen(false)}
+        currentUserData={{
+          name: profileOverrides.name ?? activeShellUser.name,
+          image: profileOverrides.image === null ? undefined : (profileOverrides.image ?? activeShellUser.image),
+          title: profileOverrides.title ?? activeShellUser.title,
+          phone: profileOverrides.phone ?? '(21) 99914-5149',
+          email: `${(profileOverrides.name ?? activeShellUser.name).toLowerCase().replace(/\s+/g, '.')}@weplanner.com.br`,
+        }}
+        onSaveProfile={(updates) => {
+          setProfileOverrides((prev) => ({ ...prev, ...updates }));
+        }}
         profileDemoOpen={profileDemoOpen}
         profileDemoAnchor={profileDemoAnchor}
         onCloseProfileDemo={() => setProfileDemoOpen(false)}

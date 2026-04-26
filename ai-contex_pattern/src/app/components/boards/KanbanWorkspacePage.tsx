@@ -53,6 +53,7 @@ import { KanbanColumn } from '../tasks/KanbanColumn';
 import { SendToBoardModal } from '../tasks/SendToBoardModal';
 import { StatusBadge } from '../tasks/StatusBadge';
 import { TaskCard } from '../tasks/TaskCard';
+import { isTaskNew } from '../tasks/NewTaskBadge';
 import { TaskDetailModal } from '../tasks/TaskDetailModal';
 import { ClientLibraryModal } from '../shared/ClientLibraryModal';
 import {
@@ -1972,6 +1973,8 @@ export function KanbanWorkspacePage({
       </div>
     );
 
+    const cardIsNew = isTaskNew(card.createdAt);
+
     if (isCompact) {
       return (
         <div className="group relative">
@@ -1991,6 +1994,7 @@ export function KanbanWorkspacePage({
             actions={cardActions}
             hideDescription
             showCompleteButton
+            isNew={cardIsNew}
             onToggleComplete={() => toggleCardComplete(card.id)}
             isCompleting={isCompleting}
             onClick={handleOpenCard}
@@ -2022,6 +2026,7 @@ export function KanbanWorkspacePage({
         client={card.client}
         coverImage={card.coverImage}
         actions={cardActions}
+        isNew={cardIsNew}
         onClick={handleOpenCard}
         onToggleComplete={() => toggleCardComplete(card.id)}
         isCompleting={isCompleting}

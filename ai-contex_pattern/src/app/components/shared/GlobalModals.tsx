@@ -1,6 +1,7 @@
 import { TaskDetailModal } from "../tasks/TaskDetailModal";
 import { ClientLibraryModal } from "./ClientLibraryModal";
 import { UserProfileCard } from "./UserProfileCard";
+import { EditProfileModal } from "./EditProfileModal";
 import { CreateBoardModal } from "../boards/CreateBoardModal";
 import { CreateTaskModal } from "../tasks/CreateTaskModal";
 import { OnboardingModal } from "../onboarding/OnboardingModal";
@@ -23,7 +24,10 @@ interface GlobalModalsProps {
   // User profile card (triggered by avatar click)
   profileUser: { name: string; image?: string } | null;
   profileAnchor: HTMLElement | null;
+  profileMode?: 'own' | 'other';
   onCloseProfile: () => void;
+  onEditProfile?: () => void;
+  onLogout?: () => void;
   // Demo user profile card (design system showcase)
   profileDemoOpen: boolean;
   profileDemoAnchor: HTMLElement | null;
@@ -39,6 +43,17 @@ interface GlobalModalsProps {
   showOnboarding: boolean;
   onCloseOnboarding: () => void;
   userName: string;
+  // Edit profile modal
+  editProfileOpen: boolean;
+  onCloseEditProfile: () => void;
+  currentUserData: {
+    name: string;
+    image?: string;
+    email?: string;
+    phone?: string;
+    title?: string;
+  };
+  onSaveProfile?: (updates: Record<string, any>) => void;
 }
 
 export function GlobalModals({
@@ -52,7 +67,10 @@ export function GlobalModals({
   onOpenClientLibrary,
   profileUser,
   profileAnchor,
+  profileMode = 'other',
   onCloseProfile,
+  onEditProfile,
+  onLogout,
   profileDemoOpen,
   profileDemoAnchor,
   onCloseProfileDemo,
@@ -64,6 +82,10 @@ export function GlobalModals({
   showOnboarding,
   onCloseOnboarding,
   userName,
+  editProfileOpen,
+  onCloseEditProfile,
+  currentUserData,
+  onSaveProfile,
 }: GlobalModalsProps) {
   const resolveProfileRole = (name: string | undefined) => {
     if (name === "Ana Silva") return "manager" as const;
@@ -119,6 +141,9 @@ export function GlobalModals({
         isOpen={!!profileUser}
         onClose={onCloseProfile}
         anchorEl={profileAnchor}
+        mode={profileMode}
+        onEditProfile={onEditProfile}
+        onLogout={onLogout}
       />
 
       {/* Demo User Profile Card (design system showcase) */}
@@ -149,6 +174,14 @@ export function GlobalModals({
         userName={userName}
         show={showOnboarding}
         onClose={onCloseOnboarding}
+      />
+
+      {/* Edit Profile Modal */}
+      <EditProfileModal
+        isOpen={editProfileOpen}
+        onClose={onCloseEditProfile}
+        user={currentUserData}
+        onSave={onSaveProfile}
       />
     </>
   );
