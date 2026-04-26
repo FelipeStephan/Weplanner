@@ -14,6 +14,7 @@ import { PriorityBadge } from '../shared/PriorityBadge';
 import { ProgressBar } from '../shared/ProgressBar';
 import { TagBadge } from '../shared/TagBadge';
 import { StatusBadge } from './StatusBadge';
+import { NewTaskBadge } from './NewTaskBadge';
 import { formatTaskDueDate, getTaskDueDateState } from '../../utils/taskDueDate';
 import { getRichTextPlainText } from '../../utils/richText';
 
@@ -62,6 +63,7 @@ interface DetailedTaskCardProps {
   showCompleteButton?: boolean;
   showProgressBar?: boolean;
   showDateAlert?: boolean;
+  isNew?: boolean;
   onToggleComplete?: () => void;
   isCompleting?: boolean;
   isMovingToCompleted?: boolean;
@@ -88,6 +90,7 @@ export function DetailedTaskCard({
   showCompleteButton = true,
   showProgressBar = true,
   showDateAlert = true,
+  isNew = false,
   onToggleComplete,
   isCompleting = false,
   isMovingToCompleted = false,
@@ -145,7 +148,7 @@ export function DetailedTaskCard({
       <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <PriorityBadge priority={priority} size="sm" />
-          {status === 'new' && <StatusBadge status="new" />}
+          {(isNew || status === 'new') && <NewTaskBadge />}
         </div>
 
         <div className="flex items-center gap-2">
